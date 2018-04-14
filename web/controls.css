@@ -21,7 +21,11 @@ body {
 	line-height:	1.8em;
 }
 
-#newgame {
+form {
+    display: inline-block;
+}
+
+.button {
 	-webkit-appearance:	button;
 	font-family:	Verdana;
 	font-size:		1em;

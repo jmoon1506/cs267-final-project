@@ -1,16 +1,27 @@
 var paramObj = {
-	b:	new Params( 9, 9, 10 ),
-	i:	new Params( 16, 16, 40 ),
-	a:	new Params( 16, 30, 99 )
+	b:	new Params( 8, 8, 8 ),
+	i:	new Params( 16, 16, 32 ),
+	a:	new Params( 16, 32, 64 )
 }
 
 function Controls() {
 	this.controlsForm = document.getElementById("controls");
+	this.newGame = document.getElementById("newgame");
+	this.solve = document.getElementById("solve");
 	this.ctrlElements = this.controlsForm.elements;
-	
+
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();			//don't want to submit an actual form
+	}
+
+	this.newGame.onsubmit = function(e) {
+		e.preventDefault();			//don't want to submit an actual form
 		theControls.newGameButton();
+	}
+
+	this.solve.onsubmit = function(e) {
+		e.preventDefault();			//don't want to submit an actual form
+		theControls.solveButton();
 	}
 	
 	radioControl( "tsize", this.resizeTiles );	
@@ -41,6 +52,10 @@ function Controls() {
 	}
 	
 	this.newGameButton();
+}
+
+function print_num(n) {
+    console.log('Got this from Python: ' + n);
 }
 
 Controls.prototype = {
@@ -86,6 +101,11 @@ Controls.prototype = {
 		}
 	
 		theBoard.newGame();
+	},
+
+	solveButton: function(e) {
+		var els = this.ctrlElements;
+		eel.solve_next()(theBoard.uncoverTile);
 	},
 
 	resizeTiles: function(e) {

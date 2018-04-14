@@ -38,10 +38,7 @@ function init() {
 	theTimer = new Timer("timer");
 	theCounter = new Counter("counter");
 	theBoard = new Board();
-	window.oncontextmenu = function() { return false };	/*override context menu, 
-	per http://stackoverflow.com/questions/2405771/is-right-click-a-javascript-event.
-	Note that post provides an alternate approach to left-vs-right click detection,
-	in case some right-clicks are sneaking through as left-clicks. */
+	// window.oncontextmenu = function() { return false };
 	
 	window.onbeforeunload = function() {
 		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
@@ -177,6 +174,7 @@ function Tile(i,j) {
 	};
 	this.tdElt.oncontextmenu = function(e) {
 		self.rightClick();
+		return false;
 	};
 
 	this.reset();
@@ -213,7 +211,7 @@ Tile.prototype = {
 	},
 	
 	leftClick: function(evtObj) {
-		console.log('mouseclick in tile '+this.myRow+','+this.myCol);
+		// console.log('mouseclick in tile '+this.myRow+','+this.myCol);
 		if ( theBoard.game == WAITING ) {
 			theTimer.start();
 			theBoard.game = PLAYING;

@@ -11,9 +11,9 @@
 			<form id="controls">
 				<fieldset id="boardsize">
 					<legend>Board size</legend>
-					<label><input type="radio" name="level" value="b" />Beginner</label><br />
-					<label><input type="radio" name="level" value="i" checked="checked" />Intermediate</label><br />
-					<label><input type="radio" name="level" value="a" />Advanced</label><br />
+					<label><input type="radio" name="level" value="b" />8x8</label><br />
+					<label><input type="radio" name="level" value="i" checked="checked" />16x16</label><br />
+					<label><input type="radio" name="level" value="a" />16x32</label><br />
 					<label><input type="radio" name="level" value="c" />Custom</label><br />
 					<table id="customform" class="hidecustom">
 						<tr><td>Rows:</td><td><input type="text" id="rows" maxlength=3 /></td></tr>
@@ -32,8 +32,11 @@
 					<label><input type="radio" name="tsize" value="m" checked="checked" />Medium (24 pixels)</label><br />
 					<label><input type="radio" name="tsize" value="l" />Large (32 pixels)</label><br />
 				</fieldset>
-				<input type="submit" name="newgame" id="newgame" value="New Game" />
 			</form>
+			<p>
+				<form id="newgame"><input type="submit" name="newgame" class="button" value="New Game" /></form>
+				<form id="solve"><input type="submit" name="solve" class="button" value="Solve" /></form>
+			</p>
 		</td><td id="board">
 			<table id="box">
 				<tr>
@@ -46,7 +49,9 @@
 				</td></tr>
 			</table>
 		</td></tr></table>
-		<script src="minesweeper.js"></script>
-		<script src="controls.js"></script>
+		<script type="text/javascript" src="/eel.js"></script>
+		<script type="text/javascript" src="jquery.min.js"></script>
+		<script type="text/javascript" src="minesweeper.js"></script>
+		<script type="text/javascript" src="controls.js"></script>
 	</body>
 </html>
