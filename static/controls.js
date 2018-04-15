@@ -18,11 +18,6 @@ function Controls() {
 		e.preventDefault();			//don't want to submit an actual form
 		theControls.newGameButton();
 	}
-
-	this.solve.onsubmit = function(e) {
-		e.preventDefault();			//don't want to submit an actual form
-		theControls.solveButton();
-	}
 	
 	radioControl( "tsize", this.resizeTiles );	
 	radioControl( "level", this.changeLevel );
@@ -55,7 +50,7 @@ function Controls() {
 }
 
 function print_num(n) {
-    console.log('Got this from Python: ' + n);
+	console.log('Got this from Python: ' + n);
 }
 
 Controls.prototype = {
@@ -99,13 +94,8 @@ Controls.prototype = {
 		if ( theBoard.num == null || !equalParams(newp, theBoard.num) ) {
 			theBoard.makeBoard(newp, els.tsize.value);
 		}
-	
+		
 		theBoard.newGame();
-	},
-
-	solveButton: function(e) {
-		var els = this.ctrlElements;
-		eel.solve_next()(theBoard.uncoverTile);
 	},
 
 	resizeTiles: function(e) {

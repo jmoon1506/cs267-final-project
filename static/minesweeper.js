@@ -146,6 +146,27 @@ function Board() {
 			}
 		}
 	};
+
+	this.getTileArray = function() {
+		var arr = [];
+		for (var j = 0 ; j < this.num.rows; j++) {
+			arr.push([]);
+			for (var i = 0 ; i < this.num.cols; i++) {
+				var tile = this.board[j][i];
+				if ( tile.status < 0 )
+					arr[j].push(tile.bombNeighbors);
+				else
+					arr[j].push(-1);
+			}
+		}
+		return arr;
+	}
+
+	this.uncoverTile = function(pos) {
+		console.log(pos);
+		// var tile = this.board[pos[1]][pos[0]];
+		// tile.leftClick();
+	}
 	
 	this.setFace = function(str) {
 		this.faceElt.setAttribute("class", str);
@@ -167,6 +188,7 @@ function Tile(i,j) {
 	this.myRow = i;
 	this.myCol = j;
 	this.tdElt = document.createElement('td');
+	this.bombNeighbors = 0;
 
 	var self = this;
 	this.tdElt.onclick = function(e) {
@@ -269,6 +291,7 @@ Tile.prototype = {
 		}
 		
 		theBoard.nonBombs--;
+		this.bombNeighbors = bombNeighbors;
 		
 		if (theBoard.nonBombs == 0 ) {
 			//game over, win
