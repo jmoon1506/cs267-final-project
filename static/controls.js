@@ -11,11 +11,11 @@ function Controls() {
 	this.ctrlElements = this.controlsForm.elements;
 
 	this.controlsForm.onsubmit = function(e) {
-		e.preventDefault();			//don't want to submit an actual form
+		e.preventDefault();
 	}
 
 	this.newGame.onsubmit = function(e) {
-		e.preventDefault();			//don't want to submit an actual form
+		e.preventDefault();
 		theControls.newGameButton();
 	}
 	
@@ -64,7 +64,6 @@ Controls.prototype = {
 				if ( num < min || num > max ) valid = false;
 			}
 		}
-		//fail
 		document.getElementById(errorId).setAttribute( "class", valid ? "noerror" : "error" );
 		return valid ? num : null;
 	},
@@ -79,7 +78,6 @@ Controls.prototype = {
 	newGameButton: function(e) {
 		var els = this.ctrlElements;
 		if (els.level.value == 'c') {
-			//need to revalidate with soft = false, to not allow null values
 			this.rows = this.validateNum(theControls.rowform, 1, 99, "rowerror", false);
 			this.cols = this.validateNum(theControls.colform, 1, 99, "colerror", false);
 			if ( this.rows == null || this.cols == null ) return;
@@ -109,7 +107,6 @@ Controls.prototype = {
 		var level = theControls.ctrlElements.level.value;
 		if ( level == 'c' ) {
  			theControls.customform.setAttribute("class", "showcustom" );
-			//validation here? or not...
 		}
 		else {
  			theControls.customform.setAttribute("class", "hidecustom" );

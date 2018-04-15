@@ -1,5 +1,22 @@
 from flask import Flask, render_template, request, jsonify
-import sys, json
+import sys
+
+def solve(board):
+    for j in range(len(board)):
+        for i in range(len(board[j])):
+            if board[j][i] == -1:
+                return [i, j]
+    return [-1, -1]
+
+
+
+
+
+
+
+##############################################################
+## Web Framework
+##############################################################
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 
@@ -11,36 +28,7 @@ def index():
 def solve_next():
     data = request.get_json()
     # print(data, file=sys.stdout)
-    for j in range(len(data)):
-        for i in range(len(data[j])):
-            if data[j][i] == -1:
-                # print(str(i) + ' ' + str(j))
-                return jsonify([i, j])
-    # first_name = json['first_name']
-    # last_name = json['last_name']
-    # return jsonify(first_name=first_name, last_name=last_name)
-    return jsonify([-1, -1])
-
-# @app.route('/solve_next', methods=['POST'])
-# def solve_next():
-#     # jsdata = request.form['javascript_data']
-#     data = request.get_json()
-#     print(data, file=sys.stdout)
-#     # return json.loads(jsdata)[0]
-#     # json = request.get_json()
-#     # first_name = json['first_name']
-#     # last_name = json['last_name']
-#     # return jsonify(first_name=first_name, last_name=last_name)
-#     return "blah"
+    return jsonify(solve(data))
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-# def solve_next(board):
-#     for j in range(len(board)):
-#         for i in range(len(board[j])):
-#             if board[j][i] == -1:
-#                 # print(str(i) + ' ' + str(j))
-#                 return [i, j]
-#     return random.random()
-

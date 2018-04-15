@@ -1,32 +1,3 @@
-/* minesweeper.js
-	Nat Kuhn, started 11/26/15
-	
-	v0.1 11/27/15: handles left click, right click, and standard game play
-	
-	* TODO: clicking custom should set rows and columns to the last game, and turn off any errors?
-	* TODO: make fixed width for bomberrormsg (between 15 and 25 em?)
-	* TODO: turn settings into menu which is shown or hidden
-	* TODO: larger tiles for tablet
-	* TODO: how to make work on tablet?
-	* TODO: force screen to scroll not shrink the tiles
-	* TODO: make other things besides grid non-selectable (e.g. settings)?
-	* TODO: top margin on the two-column table should be fixed, no auto
-	* BUG: auto-uncover seems to uncover flagged squares which are non-bombs, leading to a negative count at the end
-*/
-
-/* Here are all the different appearances of tiles:
-
-covered, non-bomb (set in Tile.reset() )
-covered-flag, covered-question-mark--in rightClick
-
-exploded bomb (redsquare background)
-uncovered bomb (gray background)-after losing
-uncovered non-bomb-after losing
-uncovered with blank or number, while playing
-covered-flag after winning
-
-*/
-
 var theTimer;
 var theCounter;
 var theBoard;
@@ -38,18 +9,11 @@ function init() {
 	theTimer = new Timer("timer");
 	theCounter = new Counter("counter");
 	theBoard = new Board();
-	// window.oncontextmenu = function() { return false };
 	
 	window.onbeforeunload = function() {
 		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
 	}
-	
 	theControls = new Controls(); 
-/*	this.p = new Params(1 * getURLParameter("rows", 16), 
-						1 * getURLParameter("columns", 16), 
-						1 * getURLParameter("bombs", 40) )
-	theBoard.makeBoard( p, getURLParameter("tilesize", "m") );
-	theBoard.newGame();*/
 }
 
 function Params(r,c,b) {
@@ -58,14 +22,13 @@ function Params(r,c,b) {
 	this.bombs = b;
 }
 
-//modified slightly (to include default value) from http://stackoverflow.com/questions/11582512/how-to-get-url-parameters-with-javascript/
 function getURLParameter(name, defaultVal) {
   return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1]
   	.replace(/\+/g, '%20'))||defaultVal
 }
 
 function Board() {
-	this.num = null;	// needed in newGameButton()
+	this.num = null;
 	
 	this.tableElt = document.getElementById("grid");
 	
@@ -84,7 +47,7 @@ function Board() {
 	}
 	
 	this.endGame = function(win) {
-		this.game = OVER;	//don't accept more clicks
+		this.game = OVER;
 		theTimer.stop();
 		this.setFace( win ? "happy" : "sad" );
 	}
@@ -233,36 +196,29 @@ Tile.prototype = {
 	},
 	
 	leftClick: function(evtObj) {
-		// console.log('mouseclick in tile '+this.myRow+','+this.myCol);
 		if ( theBoard.game == WAITING ) {
 			theTimer.start();
 			theBoard.game = PLAYING;
 		}
-//		theTimer.going();	//make sure the timer is going
-		//ignore clicks if game over, or on flags or already uncovered
 		if ( theBoard.game == OVER || this.status == FLAG || this.status == UNCOVERED ) return;
 		if ( this.bomb ) {	//oops, you lose
 			this.status = UNCOVERED;
 			theCounter.decrement();
 			this.setImage( addSize("redsquare-"), iconHTML("bomb") );
-			//game over, loss
-//	not necessary, covered by endgame()
-//			theBoard.playing = false;
-//			theTimer.stop()
+
 			theBoard.allTiles( function(t) {
 				if ( t.status == UNCOVERED ) return;
 				if ( t.bomb ) {
 					t.setImage( addSize("uncovered-"), iconHTML("bomb") );
 				}
-				else /*covered non-bomb*/ if (t.status == FLAG) {
-					theCounter.increment();		//counter should show only correct guesses
+				else if (t.status == FLAG) {
+					theCounter.increment();
 					t.setImage( addSize("uncovered-"), iconHTML("bombx") );
 				} 
 			} );
 			theBoard.endGame(false);	//you lose
 		}
-		
-		else {	//not a bomb
+		else {
 			this.uncoverNonbomb();
 		}
 	},
@@ -294,13 +250,9 @@ Tile.prototype = {
 		this.bombNeighbors = bombNeighbors;
 		
 		if (theBoard.nonBombs == 0 ) {
-			//game over, win
-//	not necessary, covered by endgame()
-//			theBoard.playing = false;
-//			theTimer.stop();
 			theBoard.allTiles( function(t) {
-				if ( t.status == UNCOVERED ) return;	//don't care about uncovered
-				if ( t.status != FLAG ) theCounter.decrement();	//could just set counter to zero but this is fail-safe
+				if ( t.status == UNCOVERED ) return;
+				if ( t.status != FLAG ) theCounter.decrement();
 				assert(t.bomb, "Player won, but there is a covered non-bomb");
 				t.setImage( addSize("covered-"), iconHTML("flag") );
 			} );
@@ -310,7 +262,6 @@ Tile.prototype = {
 		
 		if (bombNeighbors > 0) return;
 		
-		//all neighbors are non-bombs, uncover them
 		for ( i=0 ; i < neighbors.length ; i++ ) {
 			var t = neighbors[i];
 			if ( t.status != UNCOVERED ) t.uncoverNonbomb();
@@ -390,11 +341,7 @@ function Timer(element) {
 	this.start = function() {
 		this.timerObj = window.setInterval(this.timerFn, 1000);
 	}
-	
-// 	this.going = function() {
-// 		if (! this.timerObj ) this.start();
-// 	}
-// 	
+
 	this.stop = function() {
 		window.clearInterval(this.timerObj);
 		this.timerObj = null;
@@ -403,13 +350,12 @@ function Timer(element) {
 
 Timer.prototype = new Counter(null)
 
-//see: http://stackoverflow.com/questions/15313418/javascript-assert
 function assert(condition, message) {
     if (!condition) {
         message = message || "Assertion failed";
         if (typeof Error !== "undefined") {
             throw new Error(message);
         }
-        throw message; // Fallback
+        throw message;
     }
 }
