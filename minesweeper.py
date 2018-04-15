@@ -10,10 +10,16 @@ def index():
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
     data = request.get_json()
+    # print(data, file=sys.stdout)
+    for j in range(len(data)):
+        for i in range(len(data[j])):
+            if data[j][i] == -1:
+                # print(str(i) + ' ' + str(j))
+                return jsonify([i, j])
     # first_name = json['first_name']
     # last_name = json['last_name']
     # return jsonify(first_name=first_name, last_name=last_name)
-    return jsonify(data)
+    return jsonify([-1, -1])
 
 # @app.route('/solve_next', methods=['POST'])
 # def solve_next():

@@ -163,9 +163,9 @@ function Board() {
 	}
 
 	this.uncoverTile = function(pos) {
-		console.log(pos);
-		// var tile = this.board[pos[1]][pos[0]];
-		// tile.leftClick();
+		// console.log(pos);
+		var tile = this.board[pos[1]][pos[0]];
+		tile.leftClick();
 	}
 	
 	this.setFace = function(str) {
