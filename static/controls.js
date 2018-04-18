@@ -7,8 +7,8 @@ var paramObj = {
 function Controls() {
 	this.controlsForm = document.getElementById("controls");
 	this.newGame = document.getElementById("newgame");
-	this.solve = document.getElementById("solve");
 	this.ctrlElements = this.controlsForm.elements;
+	this.auto_solve = false;
 
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();
@@ -112,6 +112,25 @@ Controls.prototype = {
  			theControls.customform.setAttribute("class", "hidecustom" );
 			if ( theBoard.game != PLAYING ) theControls.newGameButton(e);
 		}
+	},
+
+	request_solve: function() {
+		$.ajax({
+	        type: 'POST',
+	        url: '/api/solve_next',
+	        dataType: 'json',
+	        contentType: 'application/json; charset=utf-8',
+	        data: JSON.stringify(theBoard.getTileArray()),
+	        success: function(callback) {
+	            theBoard.uncoverTile(callback);
+	            if (theControls.auto_solve && theBoard.game != OVER) {
+	            	theControls.request_solve();
+	            }
+	        },
+	        error: function(error) {
+	            console.log(error);
+	        }
+	    });
 	}
 }
 
