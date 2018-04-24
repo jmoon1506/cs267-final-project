@@ -71,7 +71,7 @@ def reduce_row(u, row, row_num, solved_rows):
     else:
         index = None
 
-    for i in range(row_num - 1):
+    for i in range(row_num):
         other_row = u[i]
         # print("other row [index] ", other_row[index])
         # print("solved rows ", solved_rows)
