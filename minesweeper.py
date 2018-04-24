@@ -4,7 +4,7 @@ import numpy as np
 from scipy import linalg
 np.set_printoptions(threshold=np.nan,linewidth = 1000)
 from pulp import *
-
+from collections import defaultdict
 
 def choose_rows(U, num_threads, pos_var):
     ''' 
@@ -17,9 +17,9 @@ def choose_rows(U, num_threads, pos_var):
     num_variables = U.shape[1]
 
     for row in U:
-        unique, counts = numpy.unique(row, return_counts=True)
+        unique, counts = np.unique(row, return_counts=True)
         counts_map = dict(zip(unique, counts))
-        if counts_map[1] + counts_map[-1] == 1:
+        if counts_map[1.0] + counts_map[-1.0] == 1:
             continue # We don't want to pick this row
         else:
             possible_rows.append(row)
@@ -39,6 +39,49 @@ def subproblem_create(possible_rows, pos_var):
     '''
     pass
 
+def custom_reduction(u):
+    solved_rows = [] # Rows that are uniquely solved. 
+
+    for i in range(len(u)): # Iterate through the rows of u
+        row = u[i] # Get the row 
+        # print(row)
+        unique, counts = np.unique(row, return_counts=True)
+        counts_map = dict(zip(unique, counts))
+
+        # print(counts_map)
+        if 1.0 in counts_map:
+            if counts_map[1.0] == 2 and row[-1] == 1: # If there is a single 1 and a 1 at the end.
+            # Then reduce with row
+                solved_rows.append(i) # This row is fully solved. 
+                u = reduce_row(u, row, i, solved_rows)
+            elif counts_map[1.0] == 1 and row[-1] == 0: # If there is a single 1 and a 0 at the end.
+                solved_rows.append(i) # This row is fully solved
+                u = reduce_row(u, row, i, solved_rows)
+        else:
+            pass
+
+    return u
+
+def reduce_row(u, row, row_num, solved_rows):
+    index = None # Find the index of the '1'
+    for i, elem in enumerate(row):
+        if elem == 1:
+            index = i
+            break
+    else:
+        index = None
+
+    for i in range(row_num - 1):
+        other_row = u[i]
+        # print("other row [index] ", other_row[index])
+        # print("solved rows ", solved_rows)
+        # print("i ", i)
+        
+        if other_row[index] == 1.0 and i not in solved_rows:
+            # print("Got in here")
+            u[i] = u[i] - row
+    return u
+
 def solve(board):
     if board[0][0] == -1:
         return  [0, 0]
@@ -54,6 +97,10 @@ def solve(board):
     pl, u = linalg.lu(linear_mat_np, permute_l=True)
 
     print(u)
+
+
+    u2 = custom_reduction(u)
+    print(u2)
 
     U = U.astype(int)
     # print linear_mat
