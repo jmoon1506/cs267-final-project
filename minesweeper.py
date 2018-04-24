@@ -5,6 +5,7 @@ from scipy import linalg
 np.set_printoptions(threshold=np.nan,linewidth = 1000)
 from pulp import *
 from collections import defaultdict
+import time
 
 def choose_rows(U, num_threads, pos_var):
     ''' 
@@ -25,9 +26,9 @@ def choose_rows(U, num_threads, pos_var):
             possible_rows.append(row)
 
     if num_threads < len(possible_rows):
-        return possible_rows[0 : num_threads]
+        return (possible_rows[0 : num_threads])
     else:
-        return possible_rows # Return all the rows.
+        return (possible_rows) # Return all the rows.
 
 
 def subproblem_create(possible_rows, pos_var):
@@ -111,16 +112,29 @@ def solve(board):
 
     print(u)
 
-
+    start_custom_reduction = time.time()
     u2 = custom_reduction(u)
+    end_custom_reduction = time.time()
     print(u2)
+
+    print("Custom reduction took ", end_custom_reduction - start_custom_reduction)
 
     U = U.astype(int)
     # print linear_mat
     # print U
     # print edge_num
     mine_list = []
-    feas_sol = bin_programming(linear_mat, edge_num, mine_list)
+
+    last_column_of_u2 = list(u2[:,-1])
+    all_but_last_col_of_u2 = u2[:,:-1]
+
+
+    start_bp_solver = time.time()
+    feas_sol = bin_programming(all_but_last_col_of_u2, last_column_of_u2, mine_list)
+    end_bp_solver = time.time()
+
+    print("BP Solver took ", end_bp_solver - start_bp_solver)
+
     print feas_sol
     probs = np.sum(feas_sol, axis = 0)
     hit_idx = pos_var[np.argmin(probs)]
