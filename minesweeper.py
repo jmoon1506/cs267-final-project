@@ -18,6 +18,7 @@ def choose_rows(U, b, num_threads):
     possible_rows = []
     num_variables = U.shape[1]
     delete_rows = []
+    new_b = []
 
     for i in range(len(U)):
         row = U[i]
@@ -31,7 +32,7 @@ def choose_rows(U, b, num_threads):
         if 0.0 not in counts_map:
             counts_map[0.0] = 0
 
-        new_b = []
+        
         if counts_map[1.0] + counts_map[-1.0] == 1:
             continue # We don't want to pick this row
         elif counts_map[0.0] == len(U[0]):
@@ -53,6 +54,8 @@ def choose_rows(U, b, num_threads):
     # if num_threads < len(possible_rows):
         # return np.array(possible_rows[0 : num_threads]), new_b[0 : num_threads]
     # else:
+
+    print("Possible rows ", possible_rows)
     return np.array(possible_rows), new_b # Return all the rows.
 
 
@@ -159,18 +162,18 @@ def solve(board):
     linear_mat_np = np.matrix(linear_mat)
     edge_num_np = np.matrix(edge_num)
 
-    print("Edge num is: ", edge_num_np)
+    # print("Edge num is: ", edge_num_np)
     linear_mat_np = np.hstack((linear_mat_np, np.array(edge_num_np).T))
 
-    print(linear_mat_np)
+    # print(linear_mat_np)
     pl, u = linalg.lu(linear_mat_np, permute_l=True)
 
-    print(u)
+    # print(u)
 
     start_custom_reduction = time.time()
     reduced_u = custom_reduction(u)
     end_custom_reduction = time.time()
-    print(reduced_u)
+    # print(reduced_u)
 
     print("Custom reduction took ", end_custom_reduction - start_custom_reduction)
 
@@ -184,33 +187,63 @@ def solve(board):
     linear_mat_reduced = reduced_u[:,:-1]
 
 
-    selected_rows, new_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads=4)
+    selected_rows, new_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads=15)
 
     selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
 
 
-    print("Selected rows ", selected_rows)
-    print("New b ", new_b)
-    print("New pos var ", new_pos_var)
+    # print("Selected rows ", selected_rows)
+    # print("New b ", new_b)
+    # print("New pos var ", new_pos_var)
 
 
 
     # First bin_programming solve subproblem
 
     start_partial_bp_solver = time.time()
+    print("selected rows ", selected_rows)
+    print("new b ", new_b)
+
+
     partial_feas_sol = bin_programming(selected_rows, new_b, mine_list)
+    print("Partial feas sol is ", partial_feas_sol)
     end_partial_bp_solver = time.time()
     print ("Partial BP solver took ", end_partial_bp_solver - start_partial_bp_solver)
 
 
+    # Imagine that we have distributed
+
+    feas_sol = []
+    print("Partial feas sol len", len(partial_feas_sol))
+    if (len(partial_feas_sol) > 4):
+        for j, sol in enumerate(partial_feas_sol):
+            # set timer
+
+            time_parallel_proc = time.time()
+            constraints = [(pos_var.index(new_pos_var[i]), sol[i]) for i in range(len(sol))]
+
+
+            feas_sol.extend(bin_programming(linear_mat_reduced, edge_num_reduced, mine_list, constraints))
+            end_time_parallel_proc = time.time()
+
+            print("Proc {} took ".format(j), end_time_parallel_proc - time_parallel_proc)
+
+
+
+
 
     start_bp_solver = time.time()
-    feas_sol = bin_programming(linear_mat_reduced, edge_num_reduced, mine_list)
+    feas_sol2 = bin_programming(linear_mat_reduced, edge_num_reduced, mine_list)
     end_bp_solver = time.time()
 
     print("BP Solver took ", end_bp_solver - start_bp_solver)
 
-    print feas_sol
+    print("PRINTING LENGTHS OF THE TWO FEAS SOLS")
+    print(len(feas_sol))
+    print(len(feas_sol2))
+
+
+    # print feas_sol
     probs = np.sum(feas_sol, axis = 0)
     hit_idx = pos_var[np.argmin(probs)]
     x = len(board[0])
@@ -250,7 +283,9 @@ def prepare(board):
     edge_num = np.array(edge_num)
     return linear_mat, edge_num, pos_var
 
-def bin_programming(linear_mat, edge_num, mine_list):
+
+# constraints = [(1, 0), (4, 1), (6, 0), (7, 1), (8, 1)] means that we have determined the values for 1 4 6 7 8
+def bin_programming(linear_mat, edge_num, mine_list, constraints = []):
     prob = LpProblem("oneStep", LpMinimize)
     var = []
     for i in range(linear_mat.shape[1]):
@@ -258,6 +293,12 @@ def bin_programming(linear_mat, edge_num, mine_list):
             var.append(LpVariable('a' + str(i),lowBound = 1, upBound = 1, cat='Integer'))
             continue
         var.append(LpVariable('a' + str(i),lowBound = 0, upBound = 1, cat='Integer'))
+
+    if len(constraints) > 0:
+        for i in range(len(constraints)):
+            var_num, val = constraints[i]
+            var[var_num] = val
+
     constraints_var = []
     for j in range(len(edge_num)):
         constraint = LpVariable('b' + str(j),lowBound = 0, upBound = 0, cat='Integer')
