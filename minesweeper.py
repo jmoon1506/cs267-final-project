@@ -7,28 +7,53 @@ from pulp import *
 from collections import defaultdict
 import time
 
-def choose_rows(U, num_threads, pos_var):
+def choose_rows(U, b, num_threads):
     ''' 
     Chooses the first set of variables to find feasible solutions for. 
     U: numpy matrix from LU decomposition of the binary equation matrix.
     num_threads: number of threads for which we select the matrix.
     pos_var: Maps variables to true position on board.
     '''
+
     possible_rows = []
     num_variables = U.shape[1]
+    delete_rows = []
 
-    for row in U:
+    for i in range(len(U)):
+        row = U[i]
         unique, counts = np.unique(row, return_counts=True)
         counts_map = dict(zip(unique, counts))
+
+        if 1.0 not in counts_map:
+            counts_map[1.0] = 0
+        if -1.0 not in counts_map:
+            counts_map[-1.0] = 0
+        if 0.0 not in counts_map:
+            counts_map[0.0] = 0
+
+        new_b = []
         if counts_map[1.0] + counts_map[-1.0] == 1:
             continue # We don't want to pick this row
+        elif counts_map[0.0] == len(U[0]):
+            delete_rows.append(i)
         else:
             possible_rows.append(row)
+            new_b.append(b[i])
 
-    if num_threads < len(possible_rows):
-        return (possible_rows[0 : num_threads])
-    else:
-        return (possible_rows) # Return all the rows.
+
+
+    np.delete(U, delete_rows, axis=0)
+
+    # new_b = []
+    # for i in range(len(b)):
+        # print("Delete rows is ", delete_rows)
+        # if i not in delete_rows:
+            # new_b.append(i)
+
+    # if num_threads < len(possible_rows):
+        # return np.array(possible_rows[0 : num_threads]), new_b[0 : num_threads]
+    # else:
+    return np.array(possible_rows), new_b # Return all the rows.
 
 
 def subproblem_create(possible_rows, pos_var):
@@ -96,6 +121,36 @@ def reduce_row(u, row, row_num, solved_rows, minus_one = False):
             u[i] = u[i] - row
     return u
 
+
+def delete_zero_cols(chosen_rows, pos_var):
+    delete_columns = []
+
+    for i in range(len(chosen_rows.T)):
+        col = chosen_rows.T[i]
+
+        for elem in col:
+            if elem != 0:
+                break
+        else:
+            delete_columns.append(i)
+
+    # print("Chosen rows in delete_zero_cols ", chosen_rows)
+    if len(delete_columns) > 0:
+        chosen_rows = np.delete(chosen_rows, delete_columns, 1)
+        
+    new_pos_var = []
+    for i in range(len(pos_var)):
+        if i not in delete_columns:
+            new_pos_var.append(pos_var[i])
+
+
+    return chosen_rows, new_pos_var
+
+
+
+
+
+
 def solve(board):
     if board[0][0] == -1:
         return  [0, 0]
@@ -113,9 +168,9 @@ def solve(board):
     print(u)
 
     start_custom_reduction = time.time()
-    u2 = custom_reduction(u)
+    reduced_u = custom_reduction(u)
     end_custom_reduction = time.time()
-    print(u2)
+    print(reduced_u)
 
     print("Custom reduction took ", end_custom_reduction - start_custom_reduction)
 
@@ -125,12 +180,32 @@ def solve(board):
     # print edge_num
     mine_list = []
 
-    last_column_of_u2 = list(u2[:,-1])
-    all_but_last_col_of_u2 = u2[:,:-1]
+    edge_num_reduced = list(reduced_u[:,-1])
+    linear_mat_reduced = reduced_u[:,:-1]
+
+
+    selected_rows, new_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads=4)
+
+    selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
+
+
+    print("Selected rows ", selected_rows)
+    print("New b ", new_b)
+    print("New pos var ", new_pos_var)
+
+
+
+    # First bin_programming solve subproblem
+
+    start_partial_bp_solver = time.time()
+    partial_feas_sol = bin_programming(selected_rows, new_b, mine_list)
+    end_partial_bp_solver = time.time()
+    print ("Partial BP solver took ", end_partial_bp_solver - start_partial_bp_solver)
+
 
 
     start_bp_solver = time.time()
-    feas_sol = bin_programming(all_but_last_col_of_u2, last_column_of_u2, mine_list)
+    feas_sol = bin_programming(linear_mat_reduced, edge_num_reduced, mine_list)
     end_bp_solver = time.time()
 
     print("BP Solver took ", end_bp_solver - start_bp_solver)
