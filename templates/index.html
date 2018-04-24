@@ -41,7 +41,10 @@ TODO
 			</form>
 			<p>
 				<form id="newgame"><input type="submit" name="newgame" class="button" value="New Game" /></form>
-				<form id="solve_next"><input type="submit" name="solve" class="button" value="Solve" /></form>
+				<form id="solve_next"><input type="submit" name="solve_next" class="button" value="Solve" /></form>
+			</p>
+			<p>
+				<form id="solve_auto"><input type="submit" name="solve_auto" class="button" value="Start auto-solve" /></form>
 			</p>
 		</td><td id="board">
 			<table id="box">
@@ -56,36 +59,7 @@ TODO
 			</table>
 		</td></tr></table>
 		<script type="text/javascript" src="jquery.min.js"></script>
-		<script type="text/javascript">
-            $('#solve_next').submit(function(e) {
-                    e.preventDefault();
-
-                    var data = {};
-                    var Form = this;
-
-                    $.each(this.elements, function(i, v) {
-                        var input = $(v);
-                        data[input.attr("name")] = input.val();
-                        delete data["undefined"];
-                    });
-
-                    $.ajax({
-                        type: 'POST',
-                        url: '/api/solve_next',
-                        dataType: 'json',
-                        contentType: 'application/json; charset=utf-8',
-                        data: JSON.stringify(theBoard.getTileArray()),
-                        context: Form,
-                        success: function(callback) {
-                        	theBoard.uncoverTile(callback)
-                            // console.log(callback);
-                        },
-                        error: function(error) {
-                            console.log(error);
-                        }
-                    });
-                });
-        </script>
+		<script type="text/javascript" src="solve.js"></script>
 		<script type="text/javascript" src="minesweeper.js"></script>
 		<script type="text/javascript" src="controls.js"></script>
 	</body>
