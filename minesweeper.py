@@ -57,7 +57,8 @@ def custom_reduction(u):
             elif counts_map[1.0] == 1 and row[-1] == 0: # If there is a single 1 and a 0 at the end.
                 solved_rows.append(i) # This row is fully solved
                 u = reduce_row(u, row, i, solved_rows)
-            elif counts_map[-1.0] == 1 and row[-1] == 1:
+        if -1.0 in counts_map:
+            if counts_map[-1.0] == 1 and row[-1] == 1:
                 solved_rows.append(i)
                 u = reduce_row(u, row, i, solved_rows)
             elif counts_map[-1.0] == 1 and row[-1] == 0:
