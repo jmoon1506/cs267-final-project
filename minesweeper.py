@@ -57,22 +57,28 @@ def custom_reduction(u):
             elif counts_map[1.0] == 1 and row[-1] == 0: # If there is a single 1 and a 0 at the end.
                 solved_rows.append(i) # This row is fully solved
                 u = reduce_row(u, row, i, solved_rows)
+
         if -1.0 in counts_map:
             if counts_map[-1.0] == 1 and row[-1] == 1:
                 solved_rows.append(i)
-                u = reduce_row(u, row, i, solved_rows)
+                u = reduce_row(u, row, i, solved_rows, minus_one = True)
             elif counts_map[-1.0] == 1 and row[-1] == 0:
                 solved_rows.append(i)
-                u = reduce_row(u, row, i, solved_rows)
+                u = reduce_row(u, row, i, solved_rows, minus_one = True)
         else:
             pass
 
     return u
 
-def reduce_row(u, row, row_num, solved_rows):
+def reduce_row(u, row, row_num, solved_rows, minus_one = False):
+    search_for = 1
+
+    if minus_one:
+        search_for = -1
+
     index = None # Find the index of the '1'
     for i, elem in enumerate(row):
-        if elem == 1:
+        if elem == search_for:
             index = i
             break
     else:
@@ -84,7 +90,7 @@ def reduce_row(u, row, row_num, solved_rows):
         # print("solved rows ", solved_rows)
         # print("i ", i)
 
-        if other_row[index] == 1.0 and i not in solved_rows:
+        if other_row[index] == search_for and i not in solved_rows:
             # print("Got in here")
             u[i] = u[i] - row
     return u
