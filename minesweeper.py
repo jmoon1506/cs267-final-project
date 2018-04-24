@@ -1,13 +1,22 @@
 from flask import Flask, render_template, request, jsonify
 import sys
 import numpy as np
+from scipy import linalg
+np.set_printoptions(threshold=np.nan,linewidth = 1000)
 from pulp import *
 
 def solve(board):
     if board[0][0] == -1:
         return  [0, 0]
     linear_mat, edge_num, pos_var = prepare(board)
-    feas_sol = bin_programming(linear_mat, edge_num)
+    P, L, U = linalg.lu(linear_mat)
+    U = U.astype(int)
+    print linear_mat
+    print U
+    print edge_num
+    mine_list = []
+    feas_sol = bin_programming(linear_mat, edge_num, mine_list)
+    print len(feas_sol)
     probs = np.sum(feas_sol, axis = 0)
     hit_idx = pos_var[np.argmin(probs)]
     x = len(board[0])
@@ -47,10 +56,13 @@ def prepare(board):
     edge_num = np.array(edge_num)
     return linear_mat, edge_num, pos_var
 
-def bin_programming(linear_mat, edge_num):
+def bin_programming(linear_mat, edge_num, mine_list):
     prob = LpProblem("oneStep", LpMinimize)
     var = []
     for i in range(linear_mat.shape[1]):
+        if i in mine_list:
+            var.append(LpVariable('a' + str(i),lowBound = 1, upBound = 1, cat='Integer'))
+            continue
         var.append(LpVariable('a' + str(i),lowBound = 0, upBound = 1, cat='Integer'))
     constraints_var = []
     for j in range(len(edge_num)):
