@@ -13,7 +13,8 @@ function init() {
 	window.onbeforeunload = function() {
 		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
 	}
-	theControls = new Controls(); 
+	theControls = new Controls();
+	theControls.request_solve();
 }
 
 function Params(r,c,b) {
