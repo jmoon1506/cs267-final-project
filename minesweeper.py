@@ -9,8 +9,8 @@ import logging
 np.set_printoptions(threshold=np.nan, linewidth=1000)
 
 logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-    datefmt='%d-%m-%Y:%H:%M:%S',
-    level=logging.DEBUG)
+                    datefmt='%d-%m-%Y:%H:%M:%S',
+                    level=logging.DEBUG)
 minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
 
@@ -308,7 +308,7 @@ def solve_binary_program(linear_mat, edge_num, constraints=[]):
      gather solutions for are (x_1, x_2, x_3), and we get 6 possible solutions. These are scattered to 
      6 different processors, and each one solves binary_programs with additional constraints constraining
      x_1, x_2, x_3 to be the values that are assigned to said processor. 
-    
+
     :return: List of feasible solutions for the variables. The mapping from the variable solution to
     the corresponding tile on the board is maintained by pos_var.
     """
@@ -370,5 +370,5 @@ def solve_next():
 if __name__ == '__main__':
     port = 5000 + random.randint(0, 999)
     url = "http://127.0.0.1:{0}".format(port)
-    threading.Timer(2.0, lambda: webbrowser.open(url) ).start()
+    threading.Timer(2.0, lambda: webbrowser.open(url)).start()
     app.run(port=port, debug=False)
