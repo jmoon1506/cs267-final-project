@@ -56,7 +56,7 @@ def choose_rows(U, b, num_threads):
     # else:
 
     print("Possible rows ", possible_rows)
-    return np.array(possible_rows), new_b # Return all the rows.
+    return np.array(possible_rows[:num_threads]), new_b[:num_threads] # Return all the rows.
 
 
 def subproblem_create(possible_rows, pos_var):
@@ -187,7 +187,7 @@ def solve(board):
     linear_mat_reduced = reduced_u[:,:-1]
 
 
-    selected_rows, new_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads=15)
+    selected_rows, new_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads=2)
 
     selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
 
@@ -199,23 +199,24 @@ def solve(board):
 
 
     # First bin_programming solve subproblem
-
-    start_partial_bp_solver = time.time()
-    print("selected rows ", selected_rows)
-    print("new b ", new_b)
-
-
-    partial_feas_sol = bin_programming(selected_rows, new_b, mine_list)
-    print("Partial feas sol is ", partial_feas_sol)
-    end_partial_bp_solver = time.time()
-    print ("Partial BP solver took ", end_partial_bp_solver - start_partial_bp_solver)
+    if(len(new_b) != 0):
+        print("selected rows ", selected_rows)
+        print("new b ", new_b)
+        start_partial_bp_solver = time.time()
+        partial_feas_sol = bin_programming(selected_rows, new_b, mine_list)
+        end_partial_bp_solver = time.time()
+        print("Partial feas sol is ", partial_feas_sol)
+        print ("Partial BP solver took ", end_partial_bp_solver - start_partial_bp_solver)
 
 
-    # Imagine that we have distributed
+        # Imagine that we have distributed
 
-    feas_sol = []
-    print("Partial feas sol len", len(partial_feas_sol))
-    if (len(partial_feas_sol) > 4):
+        feas_sol = []
+        print("Partial feas sol len", len(partial_feas_sol))
+    else:
+        partial_feas_sol = []
+
+    if (len(partial_feas_sol) > 2):
         for j, sol in enumerate(partial_feas_sol):
             # set timer
 
@@ -228,14 +229,11 @@ def solve(board):
 
             print("Proc {} took ".format(j), end_time_parallel_proc - time_parallel_proc)
 
-
-
-
-
     start_bp_solver = time.time()
     feas_sol2 = bin_programming(linear_mat_reduced, edge_num_reduced, mine_list)
     end_bp_solver = time.time()
-
+    if (len(partial_feas_sol) <= 2):
+        feas_sol = feas_sol2
     print("BP Solver took ", end_bp_solver - start_bp_solver)
 
     print("PRINTING LENGTHS OF THE TWO FEAS SOLS")
