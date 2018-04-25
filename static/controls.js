@@ -7,6 +7,7 @@ var paramObj = {
 function Controls() {
 	this.controlsForm = document.getElementById("controls");
 	this.newGame = document.getElementById("newgame");
+	this.solve = document.getElementById("solve");
 	this.ctrlElements = this.controlsForm.elements;
 	this.auto_solve = false;
 
