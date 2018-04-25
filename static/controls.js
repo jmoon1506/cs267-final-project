@@ -9,7 +9,7 @@ function Controls() {
 	this.newGame = document.getElementById("newgame");
 	this.solve = document.getElementById("solve");
 	this.ctrlElements = this.controlsForm.elements;
-	this.auto_solve = false;
+	this.auto_solve = true;
 
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();
