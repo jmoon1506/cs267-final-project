@@ -1,11 +1,10 @@
 from flask import Flask, render_template, request, jsonify
-import sys
+import sys, webbrowser, time, random, threading
 import numpy as np
 from scipy import linalg
-np.set_printoptions(threshold=np.nan,linewidth = 1000)
 from pulp import *
 from collections import defaultdict
-import time
+np.set_printoptions(threshold=np.nan,linewidth = 1000)
 
 def choose_rows(U, num_threads, pos_var):
     ''' 
@@ -209,11 +208,6 @@ def bin_programming(linear_mat, edge_num, mine_list):
     feas_sol = np.array(feas_sol)
     return feas_sol
 
-
-
-
-
-
 ##############################################################
 ## Web Framework
 ##############################################################
@@ -231,4 +225,7 @@ def solve_next():
     return jsonify(solve(data))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = 5000 + random.randint(0, 999)
+    url = "http://127.0.0.1:{0}".format(port)
+    threading.Timer(1.25, lambda: webbrowser.open(url) ).start()
+    app.run(port=port, debug=False)

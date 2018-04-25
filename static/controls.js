@@ -8,7 +8,7 @@ function Controls() {
 	this.controlsForm = document.getElementById("controls");
 	this.newGame = document.getElementById("newgame");
 	this.ctrlElements = this.controlsForm.elements;
-	this.auto_solve = false;
+	this.auto_solve = true;
 
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();
