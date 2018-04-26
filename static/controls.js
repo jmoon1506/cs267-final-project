@@ -7,25 +7,20 @@ var paramObj = {
 function Controls() {
 	this.controlsForm = document.getElementById("controls");
 	this.newGame = document.getElementById("newgame");
-	// this.applyCustom = document.getElementById("applycustom");
-	console.log(this.applyCustom);
 	this.ctrlElements = this.controlsForm.elements;
 	this.auto_solve = options.autostart;
 
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();
-		this.auto_solve = false;
+		theControls.auto_solve = false;
 		theControls.newGameButton();
 	}
 
 	this.newGame.onsubmit = function(e) {
 		e.preventDefault();
-		this.auto_solve = false;
+		theControls.auto_solve = false;
 		theControls.newGameButton();
 	}
-
-/*	this.applyCustom.onsubmit = function(e) {
-	}*/
 	
 	radioControl( "tsize", this.resizeTiles );	
 	radioControl( "level", this.changeLevel );
@@ -136,14 +131,15 @@ Controls.prototype = {
 	        url: '/api/solve_next',
 	        dataType: 'json',
 	        contentType: 'application/json; charset=utf-8',
-	        data: JSON.stringify(theBoard.getTileArray()),
+	        data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId}),
 	        success: function(callback) {
 	        	// console.log(callback);
+	        	if (callback[5] != gameId) return;
 	        	theChart.data.labels.push(turn++);
 	        	theChart.data.datasets[0].data.push(callback[2] + callback[3] + callback[4]);
 	        	theChart.update();
 	            theBoard.uncoverTile(callback);
-	            if (theControls.auto_solve && theBoard.game != OVER) {
+	            if (theControls.auto_solve === true && theBoard.game != OVER) {
 	            	theControls.request_solve();
 	            }
 	        },

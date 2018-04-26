@@ -370,8 +370,9 @@ def index():
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
     data = request.get_json()
-    # print(data)
-    return jsonify(solve(data))
+    solution = solve(data["board"])
+    solution.append(data["gameId"])
+    return jsonify(solution)
 
 
 if __name__ == '__main__':

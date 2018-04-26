@@ -22,13 +22,13 @@ var theChart = new Chart(document.getElementById("perf"), {
       display: false
     },
     tooltips: {
-      enabled: true
+      enabled: false
     },
     scales: {
       xAxes: [{
         ticks: {
           beginAtZero: true,
-          suggestedMax: 10,
+          maxTicksLimit: 12,
         },
         scaleLabel: {
           display: true,

@@ -2,6 +2,7 @@ var theTimer;
 var theCounter;
 var theBoard;
 var theControls;
+var gameId = 0;
 
 onload = init;
 
@@ -52,6 +53,7 @@ function Board() {
 		theChart.data.labels = [];
 		theChart.data.datasets[0].data = [];
 		theChart.update();
+		gameId++;
 	}
 	
 	this.endGame = function(win) {
