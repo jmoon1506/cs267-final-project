@@ -376,7 +376,7 @@ if __name__ == '__main__':
     app.config['autostart'] = args.autostart
 
     if args.deploy:
-        app.run(host= '0.0.0.0', port=8080)
+        app.run(host= '0.0.0.0')
     else:
         port = 5000 + random.randint(0, 999)
         url = "http://127.0.0.1:{0}".format(port)
