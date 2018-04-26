@@ -1,10 +1,12 @@
-new Chart(document.getElementById("perf"), {
+var turn = 0;
+
+var theChart = new Chart(document.getElementById("perf"), {
   type: 'bar',
   data: {
-    labels: [0, 1, 2, 3, 4],
+    labels: [],
     datasets: [{ 
-        data: [86,114,106,106,107],
-        label: "Africa",
+        data: [],
+        label: "Compute time",
         borderColor: "#3e95cd",
         fill: false
       },
@@ -20,14 +22,28 @@ new Chart(document.getElementById("perf"), {
       display: false
     },
     tooltips: {
-      enabled: false
+      enabled: true
     },
     scales: {
+      xAxes: [{
+        ticks: {
+          beginAtZero: true,
+          suggestedMax: 10,
+        },
+        scaleLabel: {
+          display: true,
+          labelString: 'Turn'
+        }
+      }],
       yAxes: [{
         ticks: {
           beginAtZero: true,
+        },
+        scaleLabel: {
+          display: true,
+          labelString: 'Compute time'
         }
-      }]
+      }],
     }
   }
 });

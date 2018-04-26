@@ -11,19 +11,16 @@ function Controls() {
 	console.log(this.applyCustom);
 	this.ctrlElements = this.controlsForm.elements;
 	this.auto_solve = options.autostart;
-	if (this.auto_solve)
-		document.getElementById('solve_auto').firstChild.value = "Stop auto-solve";
-	else
-		document.getElementById('solve_auto').firstChild.value = "Start auto-solve";
 
 	this.controlsForm.onsubmit = function(e) {
-		console.log("submit");
 		e.preventDefault();
+		this.auto_solve = false;
 		theControls.newGameButton();
 	}
 
 	this.newGame.onsubmit = function(e) {
 		e.preventDefault();
+		this.auto_solve = false;
 		theControls.newGameButton();
 	}
 
@@ -106,6 +103,11 @@ Controls.prototype = {
 		if ( theBoard.num == null || !equalParams(newp, theBoard.num) ) {
 			theBoard.makeBoard(newp, els.tsize.value);
 		}
+
+		if (this.auto_solve)
+			document.getElementById('solve_auto').firstChild.value = "Stop auto-solve";
+		else
+			document.getElementById('solve_auto').firstChild.value = "Start auto-solve";
 		
 		theBoard.newGame();
 	},
@@ -137,6 +139,9 @@ Controls.prototype = {
 	        data: JSON.stringify(theBoard.getTileArray()),
 	        success: function(callback) {
 	        	// console.log(callback);
+	        	theChart.data.labels.push(turn++);
+	        	theChart.data.datasets[0].data.push(callback[2] + callback[3] + callback[4]);
+	        	theChart.update();
 	            theBoard.uncoverTile(callback);
 	            if (theControls.auto_solve && theBoard.game != OVER) {
 	            	theControls.request_solve();

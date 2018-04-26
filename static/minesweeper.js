@@ -9,7 +9,7 @@ function init() {
 	theTimer = new Timer("timer");
 	theCounter = new Counter("counter");
 	theBoard = new Board();
-	
+
 	window.onbeforeunload = function() {
 		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
 	}
@@ -48,6 +48,10 @@ function Board() {
 		this.setFace("neutral");
 		document.getElementById("solve_auto").firstChild.disabled = false;
 		document.getElementById("solve_next").firstChild.disabled = false;
+		turn = 0;
+		theChart.data.labels = [];
+		theChart.data.datasets[0].data = [];
+		theChart.update();
 	}
 	
 	this.endGame = function(win) {
@@ -56,6 +60,7 @@ function Board() {
 		this.setFace( win ? "happy" : "dead" );
 		document.getElementById("solve_auto").firstChild.disabled = true;
 		document.getElementById("solve_next").firstChild.disabled = true;
+		theControls.auto_solve = false;
 	}
 	
 	this.makeBoard = function(p, t) {
