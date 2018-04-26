@@ -267,13 +267,11 @@ def solve(board):
         for i in range(NUM_THREADS):
             threads[i].start()
 
-
         # Wait for all threads to complete
         for t in threads:
             t.join()
         for i in range(NUM_THREADS):
             feas_sol += threads[i].get_value()
-
 
     if len(partial_feasible_sol) <= 1:
         start_bp_solver = time.time()
