@@ -371,10 +371,14 @@ def solve_next():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
+    parser.add_argument("--deploy", help="Host over network", action="store_true")
     args = parser.parse_args()
     app.config['autostart'] = args.autostart
 
-    port = 5000 + random.randint(0, 999)
-    url = "http://127.0.0.1:{0}".format(port)
-    threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
-    app.run(port=port, debug=False)
+    if args.deploy:
+        app.run(host= '0.0.0.0', port=8080)
+    else:
+        port = 5000 + random.randint(0, 999)
+        url = "http://127.0.0.1:{0}".format(port)
+        threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
+        app.run(port=port, debug=False)
