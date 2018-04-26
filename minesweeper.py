@@ -19,6 +19,8 @@ minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
 
 NUM_THREADS = 32
+clear_grid = []
+
 class myThread (threading.Thread):
    def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
       threading.Thread.__init__(self)
@@ -208,9 +210,9 @@ def is_opened(board, index):
     return not is_unopened(board, index)
 
 
-def solve(board):
+def solve_step(board):
     if is_unopened(board, (0, 0)):
-        return [0, 0]
+        return [[0, 0]]
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     linear_mat, edge_num, pos_var = prepare(board)
@@ -236,7 +238,7 @@ def solve(board):
     linear_mat_reduced = reduced_u[:, :-1]
 
     # Select rows that we want to solve as a subproblem in the serial part.
-    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = NUM_THREADS/2)
+    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = NUM_THREADS/4)
     selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
 
     minesweeper_logger.debug("Selected rows \n%s", selected_rows)
@@ -287,12 +289,32 @@ def solve(board):
     #minesweeper_logger.debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
 
     probabilities = np.sum(feas_sol, axis=0)
-    tile_to_open = pos_var[np.argmin(probabilities)]
-    length_of_row = len(board[0])
-    y_index = tile_to_open / length_of_row
-    x_index = tile_to_open % length_of_row
 
-    return [x_index, y_index]
+    grids = []
+    for ind, prob in enumerate(list(probabilities)):
+        if prob == 0:
+            tile_to_open = pos_var[ind]
+            length_of_row = len(board[0])
+            y_index = tile_to_open / length_of_row
+            x_index = tile_to_open % length_of_row
+            grids.append([x_index, y_index])
+    if len(grids) == 0:
+        tile_to_open = pos_var[np.argmin(probabilities)]
+        length_of_row = len(board[0])
+        y_index = tile_to_open / length_of_row
+        x_index = tile_to_open % length_of_row
+        grids.append([x_index, y_index])
+
+    return grids
+
+
+def solve(board):
+    global clear_grid
+    if len(clear_grid) == 0:
+        clear_grid = solve_step(board)
+    next_move = clear_grid[-1]
+    del clear_grid[-1]
+    return next_move
 
 
 def prepare(board):
