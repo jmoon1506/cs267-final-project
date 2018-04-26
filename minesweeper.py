@@ -250,7 +250,7 @@ def solve(board):
 
     # output = {"pos":[x_index, y_index], "times":[time_custom_reduction, time_partial_bp_solver, time_bp_solver]}
     # return [x_index, y_index]
-    return [x_index, y_index, time_custom_reduction, time_partial_bp_solver, time_bp_solver]
+    return [x_index, y_index, time_bp_solver, time_partial_bp_solver, time_custom_reduction]
 
 
 def prepare(board):

@@ -127,26 +127,35 @@ Controls.prototype = {
 
 	request_solve: function() {
 		$.ajax({
-	        type: 'POST',
-	        url: '/api/solve_next',
-	        dataType: 'json',
-	        contentType: 'application/json; charset=utf-8',
-	        data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId}),
-	        success: function(callback) {
-	        	// console.log(callback);
-	        	if (callback[5] != gameId) return;
-	        	theChart.data.labels.push(turn++);
-	        	theChart.data.datasets[0].data.push(callback[2] + callback[3] + callback[4]);
-	        	theChart.update();
-	            theBoard.uncoverTile(callback);
-	            if (theControls.auto_solve === true && theBoard.game != OVER) {
-	            	theControls.request_solve();
-	            }
-	        },
-	        error: function(error) {
-	            console.log(error);
-	        }
-	    });
+			type: 'POST',
+			url: '/api/solve_next',
+			dataType: 'json',
+			contentType: 'application/json; charset=utf-8',
+			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId}),
+			success: function(callback) {
+				// console.log(callback);
+				if (callback[5] != gameId || theBoard.game == OVER) return;
+				theChart.data.labels.push(turn++);
+				var elems = theChart.data.labels.length;
+				if (elems > 10) {
+					for (var i = 0; i < elems; i++) {
+						if (i % 5 != 4 && i != 0)
+							theChart.data.labels[i] = '';
+					}
+				}
+				theChart.data.datasets[0].data.push(callback[2]);
+				theChart.data.datasets[1].data.push(callback[3]);
+				theChart.data.datasets[2].data.push(callback[4]);
+				theChart.update();
+				theBoard.uncoverTile(callback);
+				if (theControls.auto_solve === true) {
+					theControls.request_solve();
+				}
+			},
+			error: function(error) {
+				console.log(error);
+			}
+		});
 	}
 }
 

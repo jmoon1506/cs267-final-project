@@ -11,9 +11,9 @@ function init() {
 	theCounter = new Counter("counter");
 	theBoard = new Board();
 
-	window.onbeforeunload = function() {
+/*	window.onbeforeunload = function() {
 		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
-	}
+	}*/
 	theControls = new Controls();
 	if (theControls.auto_solve)
 		theControls.request_solve();
@@ -49,7 +49,7 @@ function Board() {
 		this.setFace("neutral");
 		document.getElementById("solve_auto").firstChild.disabled = false;
 		document.getElementById("solve_next").firstChild.disabled = false;
-		turn = 0;
+		turn = 1;
 		theChart.data.labels = [];
 		theChart.data.datasets[0].data = [];
 		theChart.update();
