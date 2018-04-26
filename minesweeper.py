@@ -85,7 +85,10 @@ def choose_rows(U, b, num_threads):
             selected_b.append(b[i])
     np.delete(U, delete_rows, axis=0)
     minesweeper_logger.debug("Possible rows \n%s", possible_rows)
-    return np.array(possible_rows[:num_threads]), selected_b[:num_threads]  # Return all the rows.
+    if len(possible_rows) >= num_threads:
+        return np.array(possible_rows[:num_threads]), selected_b[:num_threads]  # Return all the rows.
+    else:
+        return np.array(possible_rows[:]), selected_b[:]
 
 
 def custom_reduction(u):
