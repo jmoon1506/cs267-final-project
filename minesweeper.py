@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-import sys, webbrowser, time, random, threading
+import sys, webbrowser, time, random, threading, argparse
 import numpy as np
 from scipy import linalg
 from pulp import *
@@ -216,12 +216,15 @@ def solve(board):
         minesweeper_logger.debug("Linear equations augmented matrix is: \n%s", linear_matrix_augmented)
         pl, u = linalg.lu(linear_matrix_augmented, permute_l=True)  # Perform LU decomposition. U is gaussian eliminated.
         minesweeper_logger.debug("U matrix of linear equations joined matrix is: \n%s", u)
+        time_custom_reduction = 0
+        time_partial_bp_solver = 0
+        time_bp_solver = 0
 
         start_custom_reduction = time.time()
         reduced_u = custom_reduction(u)
-        end_custom_reduction = time.time()
+        time_custom_reduction = time.time() - start_custom_reduction
         minesweeper_logger.debug("Reduced U matrix of lin. eqns joined matrix is: \n%s", reduced_u)
-        minesweeper_logger.info("Custom reduction took \n%s", end_custom_reduction - start_custom_reduction)
+        minesweeper_logger.info("Custom reduction took \n%s", time_custom_reduction)
 
         edge_num_reduced = list(reduced_u[:, -1])
         linear_mat_reduced = reduced_u[:, :-1]
@@ -245,9 +248,9 @@ def solve(board):
         minesweeper_logger.debug("selected b \n%s", selected_b)
         start_partial_bp_solver = time.time()
         partial_feasible_solution = solve_binary_program(selected_rows, selected_b)
-        end_partial_bp_solver = time.time()
+        time_partial_bp_solver = time.time() - start_partial_bp_solver
         minesweeper_logger.info("Partial feasible sol is \n%s", partial_feasible_solution)
-        minesweeper_logger.info("Partial BP solver took \n%s", end_partial_bp_solver - start_partial_bp_solver)
+        minesweeper_logger.info("Partial BP solver took \n%s", time_partial_bp_solver)
         minesweeper_logger.info("Partial feas sol len \n%s", len(partial_feasible_solution))
 
 
@@ -266,7 +269,6 @@ def solve(board):
     if rank == 0:
         minesweeper_logger.info("Finished broadcast from rank 0...")
     comm.Barrier()
-
 
     if rank == 1:
         print("HI FROM PROC 1")
@@ -295,8 +297,8 @@ def solve(board):
         if len(partial_feasible_solution) <= 2:
             start_bp_solver = time.time()
             serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-            end_bp_solver = time.time()
-            minesweeper_logger.info("Had to use serial solver. Took time %s".format(end_bp_solver - start_bp_solver))
+            time_bp_solver = time.time() - start_bp_solver
+            minesweeper_logger.info("Had to use serial solver. Took time %s".format(time_bp_solver))
             minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
             final_feasible_solution = serial_feasible_soln
         else:
@@ -310,7 +312,7 @@ def solve(board):
         y_index = tile_to_open / length_of_row
         x_index = tile_to_open % length_of_row
 
-        return [x_index, y_index]
+        return [x_index, y_index, time_bp_solver, time_partial_bp_solver, time_custom_reduction]
 
 #####################################################
 # Creates equations
@@ -427,19 +429,29 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    options = {'autostart': app.config.get('autostart')}
+    return render_template('index.html', options=options)
 
 
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
     data = request.get_json()
-    # print(data)
-    return jsonify(solve(data))
+    solution = solve(data["board"])
+    solution.append(data["gameId"])
+    return jsonify(solution)
 
 
 if __name__ == '__main__':
-    # if rank == 0:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
+    parser.add_argument("--deploy", help="Host over network", action="store_true")
+    args = parser.parse_args()
+    app.config['autostart'] = args.autostart
+
+    if args.deploy:
+        app.run(host= '0.0.0.0')
+    else:
         port = 5000 + random.randint(0, 999)
         url = "http://127.0.0.1:{0}".format(port)
-        threading.Timer(2.0, lambda: webbrowser.open(url)).start()
+        threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
         app.run(port=port, debug=False)

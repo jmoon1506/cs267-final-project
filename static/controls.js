@@ -8,14 +8,17 @@ function Controls() {
 	this.controlsForm = document.getElementById("controls");
 	this.newGame = document.getElementById("newgame");
 	this.ctrlElements = this.controlsForm.elements;
-	this.auto_solve = true;
+	this.auto_solve = options.autostart;
 
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();
+		theControls.auto_solve = false;
+		theControls.newGameButton();
 	}
 
 	this.newGame.onsubmit = function(e) {
 		e.preventDefault();
+		theControls.auto_solve = false;
 		theControls.newGameButton();
 	}
 	
@@ -27,6 +30,7 @@ function Controls() {
 	this.colform = document.getElementById("columns");
 	this.bombform = document.getElementById("bombs");
 	this.bomberrormsg = document.getElementById("bomberrormsg");
+	this.applyerrormsg = document.getElementById("bomberrormsg");
 	
 	this.rows = null;
 	this.rowform.onblur = function(e) {
@@ -80,7 +84,9 @@ Controls.prototype = {
 		if (els.level.value == 'c') {
 			this.rows = this.validateNum(theControls.rowform, 1, 99, "rowerror", false);
 			this.cols = this.validateNum(theControls.colform, 1, 99, "colerror", false);
-			if ( this.rows == null || this.cols == null ) return;
+			if ( this.rows == null || this.cols == null ) {
+				return;
+			}
 			
 			this.bombs = this.validateBombs(false);
 			if ( this.bombs == null ) return;
@@ -92,6 +98,11 @@ Controls.prototype = {
 		if ( theBoard.num == null || !equalParams(newp, theBoard.num) ) {
 			theBoard.makeBoard(newp, els.tsize.value);
 		}
+
+		if (this.auto_solve)
+			document.getElementById('solve_auto').firstChild.value = "Stop auto-solve";
+		else
+			document.getElementById('solve_auto').firstChild.value = "Start auto-solve";
 		
 		theBoard.newGame();
 	},
@@ -116,21 +127,35 @@ Controls.prototype = {
 
 	request_solve: function() {
 		$.ajax({
-	        type: 'POST',
-	        url: '/api/solve_next',
-	        dataType: 'json',
-	        contentType: 'application/json; charset=utf-8',
-	        data: JSON.stringify(theBoard.getTileArray()),
-	        success: function(callback) {
-	            theBoard.uncoverTile(callback);
-	            if (theControls.auto_solve && theBoard.game != OVER) {
-	            	theControls.request_solve();
-	            }
-	        },
-	        error: function(error) {
-	            console.log(error);
-	        }
-	    });
+			type: 'POST',
+			url: '/api/solve_next',
+			dataType: 'json',
+			contentType: 'application/json; charset=utf-8',
+			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId}),
+			success: function(callback) {
+				// console.log(callback);
+				if (callback[5] != gameId || theBoard.game == OVER) return;
+				theChart.data.labels.push(turn++);
+				var elems = theChart.data.labels.length;
+				if (elems > 10) {
+					for (var i = 0; i < elems; i++) {
+						if (i % 5 != 4 && i != 0)
+							theChart.data.labels[i] = '';
+					}
+				}
+				theChart.data.datasets[0].data.push(callback[2]);
+				theChart.data.datasets[1].data.push(callback[3]);
+				theChart.data.datasets[2].data.push(callback[4]);
+				theChart.update();
+				theBoard.uncoverTile(callback);
+				if (theControls.auto_solve === true) {
+					theControls.request_solve();
+				}
+			},
+			error: function(error) {
+				console.log(error);
+			}
+		});
 	}
 }
 

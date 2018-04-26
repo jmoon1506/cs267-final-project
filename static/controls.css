@@ -1,24 +1,27 @@
 body {
-	background-color:	aquamarine;
+	background-color:	#eef;
 	font-family:		Verdana, sanserif;
+	font-size:          12px;
 /*	width:				100%;*/
 }
 
 .columns td {
-	padding:	50px;
+	padding-right:	8px;
 }
 
 #leftcolumn {
-	border-right:	1px solid black;
+	/*border-right:	1px solid black;*/
 /*	width:			500px;*/
 }
+
+p.indent{ padding-left: 1.8em }
 
 .columns {
 	border-collapse:	collapse;
 }
 
 #controls {
-	line-height:	1.8em;
+	line-height:	1.0em;
 }
 
 form {
@@ -28,19 +31,20 @@ form {
 .button {
 	-webkit-appearance:	button;
 	font-family:	Verdana;
-	font-size:		1em;
+	font-style:     bold;
+	font-size:		1.2em;
 	border-radius:	5px;
-	margin:	10px 20px;
+	margin:	8px 0px;
 	background-color:	White;
 }
 
 #customform {
-	line-height:	1em;
-	margin-top:		1em;
+	/*line-height:	1em;*/
+	/*margin-top:		1em;*/
 }
 
 #customform td {
-	padding:	0px 3px;
+	padding:	0px 0px;
 }
 
 .noerror {
