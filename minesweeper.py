@@ -6,14 +6,52 @@ from pulp import *
 import time
 import logging
 
+import thread
+
+import time
+
 np.set_printoptions(threshold=np.nan, linewidth=1000)
 
 logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                     datefmt='%d-%m-%Y:%H:%M:%S',
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
 
+NUM_THREADS = 4
+class myThread (threading.Thread):
+   def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
+      threading.Thread.__init__(self)
+      self.threadID = threadID
+      self.name = name
+      self.counter = counter
+      self.linear_mat_reduced = linear_mat_reduced
+      self.edge_num_reduced = edge_num_reduced
+      self.partial_feasible_sol = partial_feasible_sol
+      self.pos_var = pos_var
+      self.new_pos_var = new_pos_var
+
+   def run(self):
+      # Get lock to synchronize threads
+      threadLock = threading.Lock()
+      threadLock.acquire()
+      time_parallel_proc = time.time()
+      self.feas_sol = parallel_solving(self.linear_mat_reduced, self.edge_num_reduced, self.partial_feasible_sol, self.pos_var, self.new_pos_var, self.threadID)
+      end_time_parallel_proc = time.time()
+      minesweeper_logger.info("Proc {} took \n%s".format(self.threadID), end_time_parallel_proc - time_parallel_proc)
+      # Free lock to release next thread
+      threadLock.release()
+
+   def get_value(self):
+      return self.feas_sol
+
+def parallel_solving(linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var, threadID):
+    feas_sol = []
+    for j, sol in enumerate(partial_feasible_sol):
+        if j % NUM_THREADS == threadID:
+            constraints = [(pos_var.index(new_pos_var[i]), sol[i]) for i in range(len(sol))]
+            feas_sol.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints))
+    return feas_sol
 
 def choose_rows(U, b, num_threads):
     """ 
@@ -218,25 +256,34 @@ def solve(board):
     else:
         partial_feasible_sol = []
 
-    if len(partial_feasible_sol) > 2:
-        for j, sol in enumerate(partial_feasible_sol):
-            # set timer
-            time_parallel_proc = time.time()
-            constraints = [(pos_var.index(new_pos_var[i]), sol[i]) for i in range(len(sol))]
-            feas_sol.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints))
-            end_time_parallel_proc = time.time()
+    if len(partial_feasible_sol) > 1:
 
-            minesweeper_logger.info("Proc {} took \n%s".format(j), end_time_parallel_proc - time_parallel_proc)
+        threads = []
+        # Create new threads
+        for i in range(NUM_THREADS):
+            threads.append(myThread(i, "Thread"+str(i), i, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var))
 
-    start_bp_solver = time.time()
-    serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-    end_bp_solver = time.time()
-    if len(partial_feasible_sol) <= 2:
+        # Start new Threads
+        for i in range(NUM_THREADS):
+            threads[i].start()
+
+
+        # Wait for all threads to complete
+        for t in threads:
+            t.join()
+        for i in range(NUM_THREADS):
+            feas_sol += threads[i].get_value()
+
+
+    if len(partial_feasible_sol) <= 1:
+        start_bp_solver = time.time()
+        serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
+        end_bp_solver = time.time()
         feas_sol = serial_feasible_soln
-    minesweeper_logger.info("BP Solver took \n%s", end_bp_solver - start_bp_solver)
+        minesweeper_logger.info("BP Solver took \n%s", end_bp_solver - start_bp_solver)
 
     minesweeper_logger.debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
-    minesweeper_logger.debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
+    #minesweeper_logger.debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
 
     probabilities = np.sum(feas_sol, axis=0)
     tile_to_open = pos_var[np.argmin(probabilities)]
