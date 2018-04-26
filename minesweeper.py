@@ -18,7 +18,10 @@ logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:
 minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
 
-NUM_THREADS = 32
+
+NUM_THREADS = 2
+
+
 clear_grid = []
 
 class myThread (threading.Thread):
@@ -442,7 +445,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
+    parser.add_argument("-p", dest="p", default=10, type=int, help="number of threads")
     args = parser.parse_args()
+    global NUM_THREADS
+    NUM_THREADS = args.p
     app.config['autostart'] = args.autostart
 
     if args.deploy:
