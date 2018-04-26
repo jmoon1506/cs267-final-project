@@ -86,7 +86,7 @@ def choose_rows(U, b, num_threads):
     np.delete(U, delete_rows, axis=0)
     minesweeper_logger.debug("Possible rows \n%s", possible_rows)
     if len(possible_rows) >= num_threads:
-        return np.array(possible_rows[:num_threads]), selected_b[:num_threads]  # Return all the rows.
+        return np.array(possible_rows[-1-num_threads:-1]), selected_b[-1-num_threads:-1]  # Return all the rows.
     else:
         return np.array(possible_rows[:]), selected_b[:]
 
