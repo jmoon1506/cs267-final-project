@@ -5,7 +5,11 @@ from scipy import linalg
 from pulp import *
 import time
 import logging
+from mpi4py import MPI
 
+#############################################
+# Logging Configurations
+############################################
 np.set_printoptions(threshold=np.nan, linewidth=1000)
 
 logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
@@ -14,7 +18,15 @@ logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:
 minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
 
+#########################################################
+# MPI Configurations
+#########################################################
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
 
+#################################################
+# Parallelization Methods
+##################################################
 def choose_rows(U, b, num_threads):
     """ 
     Chooses the first set of variables to find feasible solutions for. 
@@ -49,7 +61,9 @@ def choose_rows(U, b, num_threads):
     minesweeper_logger.debug("Possible rows \n%s", possible_rows)
     return np.array(possible_rows[:num_threads]), selected_b[:num_threads]  # Return all the rows.
 
-
+#################################################
+# Serial code optimization
+################################################
 def custom_reduction(u):
     """
     Custom reduction function for the LU decomposed matrix 'u'. 
@@ -167,86 +181,108 @@ def is_opened(board, index):
     return not is_unopened(board, index)
 
 
+####################################################
+# Central method. Selects which tile to open
+#################################################
 def solve(board):
-    if is_unopened(board, (0, 0)):
-        return [0, 0]
+    if rank == 0:
+        if is_unopened(board, (0, 0)):
+            return [0, 0]
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
-    linear_mat, edge_num, pos_var = prepare(board)
-    linear_mat_np = np.matrix(linear_mat)  # Convert to np matrix.
-    edge_num_np = np.matrix(edge_num)  # Convert to np matrix.
+    if rank == 0:
+        linear_mat, edge_num, pos_var = prepare(board)
+        linear_mat_np = np.matrix(linear_mat)  # Convert to np matrix.
+        edge_num_np = np.matrix(edge_num)  # Convert to np matrix.
 
-    minesweeper_logger.debug("Edge num is: \n%s", edge_num_np)
-    # Augment the matrix to do LU decomposition.
-    linear_matrix_augmented = np.hstack((linear_mat_np, np.array(edge_num_np).T))
+    if rank == 0:
+        minesweeper_logger.debug("Edge num is: \n%s", edge_num_np)
+        # Augment the matrix to do LU decomposition.
+        linear_matrix_augmented = np.hstack((linear_mat_np, np.array(edge_num_np).T))
+        minesweeper_logger.debug("Linear equations augmented matrix is: \n%s", linear_matrix_augmented)
+        pl, u = linalg.lu(linear_matrix_augmented, permute_l=True)  # Perform LU decomposition. U is gaussian eliminated.
+        minesweeper_logger.debug("U matrix of linear equations joined matrix is: \n%s", u)
 
-    minesweeper_logger.debug("Linear equations augmented matrix is: \n%s", linear_matrix_augmented)
-    pl, u = linalg.lu(linear_matrix_augmented, permute_l=True)  # Perform LU decomposition. U is gaussian eliminated.
+        start_custom_reduction = time.time()
+        reduced_u = custom_reduction(u)
+        end_custom_reduction = time.time()
+        minesweeper_logger.debug("Reduced U matrix of lin. eqns joined matrix is: \n%s", reduced_u)
+        minesweeper_logger.info("Custom reduction took \n%s", end_custom_reduction - start_custom_reduction)
 
-    minesweeper_logger.debug("U matrix of linear equations joined matrix is: \n%s", u)
+        edge_num_reduced = list(reduced_u[:, -1])
+        linear_mat_reduced = reduced_u[:, :-1]
 
-    start_custom_reduction = time.time()
-    reduced_u = custom_reduction(u)
-    end_custom_reduction = time.time()
-    minesweeper_logger.debug("Reduced U matrix of lin. eqns joined matrix is: \n%s", reduced_u)
-    minesweeper_logger.info("Custom reduction took \n%s", end_custom_reduction - start_custom_reduction)
+    if rank == 0:
+        # Select rows that we want to solve as a subproblem in the serial part.
+        selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads=2)
+        selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
 
-    edge_num_reduced = list(reduced_u[:, -1])
-    linear_mat_reduced = reduced_u[:, :-1]
+        minesweeper_logger.debug("Selected rows \n%s", selected_rows)
+        minesweeper_logger.debug("New b \n%s", selected_b)
+        minesweeper_logger.debug("New pos var \n%s", new_pos_var)
 
-    # Select rows that we want to solve as a subproblem in the serial part.
-    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads=2)
-    selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
-
-    minesweeper_logger.debug("Selected rows \n%s", selected_rows)
-    minesweeper_logger.debug("New b \n%s", selected_b)
-    minesweeper_logger.debug("New pos var \n%s", new_pos_var)
-
+    if rank == 0:
+        partial_feasible_solution = []
+    else:
+        partial_feasible_solution = None
     # First bin_programming solve subproblem
-    if len(selected_b) != 0:
+    if len(selected_b) != 0 and rank == 0:
         minesweeper_logger.debug("selected rows \n%s", selected_rows)
         minesweeper_logger.debug("selected b \n%s", selected_b)
         start_partial_bp_solver = time.time()
-        partial_feasible_sol = solve_binary_program(selected_rows, selected_b)
+        partial_feasible_solution = solve_binary_program(selected_rows, selected_b)
         end_partial_bp_solver = time.time()
-        minesweeper_logger.info("Partial feasible sol is \n%s", partial_feasible_sol)
+        minesweeper_logger.info("Partial feasible sol is \n%s", partial_feasible_solution)
         minesweeper_logger.info("Partial BP solver took \n%s", end_partial_bp_solver - start_partial_bp_solver)
+        minesweeper_logger.info("Partial feas sol len \n%s", len(partial_feasible_solution))
 
-        # Imagine that we have distributed
-        feas_sol = []
-        minesweeper_logger.info("Partial feas sol len \n%s", len(partial_feasible_sol))
-    else:
-        partial_feasible_sol = []
+    if rank == 0:
+        if len(partial_feasible_solution) > 2:
+            partial_feasible_solution = comm.scatter(partial_feasible_solution, root=0)
+            # Broadcast all the data required.
+            comm.Bcast(linear_mat_reduced) 
+            comm.Bcast(edge_num_reduced)
+            comm.Bcast(new_pos_var)
+            comm.Bcast(pos_var)
 
-    if len(partial_feasible_sol) > 2:
-        for j, sol in enumerate(partial_feasible_sol):
+    parallel_feasible_solutions = [] # All procs initailize this to be entry.
+    if partial_feasible_solution != None: # This means that the root sent me something
+        for j, sol in enumerate(partial_feasible_solution):
+            # All processors go through their list of partial_feasible_solutions
             # set timer
-            time_parallel_proc = time.time()
+            time_parallel_proc = time.time() # All processors time.
             constraints = [(pos_var.index(new_pos_var[i]), sol[i]) for i in range(len(sol))]
-            feas_sol.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints))
+            parallel_feasible_solutions.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints)) # All processors solve.
             end_time_parallel_proc = time.time()
 
-            minesweeper_logger.info("Proc {} took \n%s".format(j), end_time_parallel_proc - time_parallel_proc)
+            minesweeper_logger.info("Proc {} took \n%s".format(j), end_time_parallel_proc - time_parallel_proc) # All processors log.
 
-    start_bp_solver = time.time()
-    serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-    end_bp_solver = time.time()
-    if len(partial_feasible_sol) <= 2:
-        feas_sol = serial_feasible_soln
-    minesweeper_logger.info("BP Solver took \n%s", end_bp_solver - start_bp_solver)
+    parallel_feasible_solutions = comm.gather(parallel_feasible_solutions, root=0)
 
-    minesweeper_logger.debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
-    minesweeper_logger.debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
+    if rank == 0:
+        if len(partial_feasible_solution) <= 2:
+            start_bp_solver = time.time()
+            serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
+            end_bp_solver = time.time()
+            minesweeper_logger.info("Had to use serial solver. Took time %s".format(end_bp_solver - start_bp_solver))
+            minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
+            final_feasible_solution = serial_feasible_soln
+        else:
+            final_feasible_solution = parallel_feasible_solutions
+            minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
 
-    probabilities = np.sum(feas_sol, axis=0)
-    tile_to_open = pos_var[np.argmin(probabilities)]
-    length_of_row = len(board[0])
-    y_index = tile_to_open / length_of_row
-    x_index = tile_to_open % length_of_row
+        probabilities = np.sum(final_feasible_solution, axis=0)
+        # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
+        tile_to_open = pos_var[np.argmin(probabilities)]
+        length_of_row = len(board[0])
+        y_index = tile_to_open / length_of_row
+        x_index = tile_to_open % length_of_row
 
-    return [x_index, y_index]
+        return [x_index, y_index]
 
-
+#####################################################
+# Creates equations
+#######################################################
 def prepare(board):
     """
     :param board: 
@@ -287,7 +323,9 @@ def prepare(board):
     edge_num = np.array(edge_num)
     return linear_mat, edge_num, pos_var
 
-
+#######################################################
+# Binary program solver
+#######################################################
 def solve_binary_program(linear_mat, edge_num, constraints=[]):
     """
     Solves the given binary program, and returns ALL feasible solutions. 
