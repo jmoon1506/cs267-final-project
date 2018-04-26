@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-import sys, webbrowser, time, random, threading
+import sys, webbrowser, time, random, threading, argparse
 import numpy as np
 from scipy import linalg
 np.set_printoptions(threshold=np.nan,linewidth = 1000)
@@ -335,7 +335,8 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    options = {'autostart': app.config.get('autostart')}
+    return render_template('index.html', options=options)
 
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
@@ -344,7 +345,12 @@ def solve_next():
     return jsonify(solve(data))
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
+    args = parser.parse_args()
+    app.config['autostart'] = args.autostart
+
     port = 5000 + random.randint(0, 999)
     url = "http://127.0.0.1:{0}".format(port)
-    threading.Timer(2.0, lambda: webbrowser.open(url) ).start()
+    threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
     app.run(port=port, debug=False)

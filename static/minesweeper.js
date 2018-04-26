@@ -14,7 +14,8 @@ function init() {
 		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
 	}
 	theControls = new Controls();
-	theControls.request_solve();
+	if (theControls.auto_solve)
+		theControls.request_solve();
 }
 
 function Params(r,c,b) {
