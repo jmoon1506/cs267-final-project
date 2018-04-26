@@ -7,6 +7,16 @@ TODO
 <!doctype html>
 <html>
 	<head>
+		<!-- <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"> -->
+		<script type="text/javascript" src="jquery.min.js"></script>
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+		<script>
+		$( function() {
+		$( document ).tooltip();
+		} );
+		</script>
+	</head>
+	<head>
 		<title>minesweeper-js</title>
 		<meta charset="utf-8">
 		<link rel="stylesheet" type="text/css" href="minesweeper.css">
@@ -17,37 +27,56 @@ TODO
 		<tr>
 			<td id="board">
 				<table id="box">
-					<tr>
-						<td><div class="readout" id="counter">123</div></td>
+					<tr bgcolor="#C0C0C0">
+						<td><div class="readout" id="counter" title="Remaining mines">123</div></td>
 						<td id="face" class="neutral"></td>
-						<td><div class="readout" id="timer">456</div></td>
+						<td><div class="readout" id="timer" title="Game time">456</div></td>
 					</tr>
 					<tr><td colspan="3">
 						<table id="grid"></table>
 					</td></tr>
 				</table>
 			</td>
+			<td>
+				<canvas id="perf" width="300px" height="300px"></canvas>
+			</td>
 		</tr>
 		<tr>
+			<td valign="top" align="center">
+				<p>
+					<form id="newgame"><input type="submit" name="newgame" class="button" value="New Game" /></form>&nbsp;&nbsp;
+					<form id="solve_next"><input type="submit" name="solve_next" class="button" value="Solve" /></form>&nbsp;&nbsp;
+					<form id="solve_auto"><input type="submit" name="solve_auto" class="button" value="Stop auto-solve" /></form>
+				</p>
+			</td>
 			<td id="leftcolumn">
 				<form id="controls">
-					<fieldset id="boardsize">
+					<fieldset id="boardsize" padding-bottom="8px">
 						<legend>Board size</legend>
-						<label><input type="radio" name="level" value="b" />8x8</label><br />
-						<label><input type="radio" name="level" value="i" checked="checked" />16x16</label><br />
-						<label><input type="radio" name="level" value="a" />16x32</label><br />
-						<label><input type="radio" name="level" value="c" />Custom</label><br />
-						<table id="customform" class="hidecustom">
-							<tr><td>Rows:</td><td><input type="text" id="rows" maxlength=3 /></td></tr>
-							<tr id="rowerror" class="noerror"><td colspan="2">Must be a number between 1 and 99</td></tr>
-							<tr><td>Columns:</td><td><input type="text" id="columns" maxlength=3 /></td></tr>
-							<tr id="colerror" class="noerror"><td colspan="2">Must be a number between 1 and 99</td></tr>
-							<tr><td>Bombs:</td><td><input type="text" id="bombs" maxlength=3 /></td></tr>
-							<tr id="bomberror" class="noerror">
-								<td colspan="2" id="bomberrormsg">Must be a number between 0 and 9999</td>
-							</tr>
-						</table>
+						<table><tr>
+							<td valign="top">
+								<label><input type="radio" name="level" value="b" />8x8</label><br />
+								<label><input type="radio" name="level" value="i" checked="checked" />16x16</label><br />
+								<label><input type="radio" name="level" value="a" />16x32</label><br />
+								<label><input type="radio" name="level" value="c" />Custom</label><br />
+							</td>
+							<td padding="0px">
+								<table id="customform" class="hidecustom" cellpadding="0px">
+									<tr><td>Rows:</td><td><input type="text" id="rows" maxlength=3 /></td></tr>
+									<tr id="rowerror" class="noerror"><td colspan="2">Must be a number between 1 and 99</td></tr>
+									<tr><td>Columns:</td><td><input type="text" id="columns" maxlength=3 /></td></tr>
+									<tr id="colerror" class="noerror"><td colspan="2">Must be a number between 1 and 99</td></tr>
+									<tr><td>Bombs:</td><td><input type="text" id="bombs" maxlength=3 /></td></tr>
+									<tr id="bomberror" class="noerror">
+										<td colspan="2" id="bomberrormsg">Must be a number between 0 and 9999</td>
+									</tr>
+									<tr><td/><td><input type="submit" id="applycustom" value="Apply"/><td></tr>
+									<tr id="applyerror" class="noerror"><td colspan="2">Invalid game settings</td></tr>
+								</table>
+							</td>
+						</tr></table>
 					</fieldset>
+					<br/>
 					<fieldset id="tilesize">
 						<legend>Tile size</legend>
 						<label><input type="radio" name="tsize" value="s" />Small (16 pixels)</label><br />
@@ -55,24 +84,14 @@ TODO
 						<label><input type="radio" name="tsize" value="l" />Large (32 pixels)</label><br />
 					</fieldset>
 				</form>
-				<p>
-					<form id="newgame"><input type="submit" name="newgame" class="button" value="New Game" /></form>
-					<form id="solve_next"><input type="submit" name="solve_next" class="button" value="Solve" /></form>
-				</p>
-				<p>
-					<form id="solve_auto"><input type="submit" name="solve_auto" class="button" value="Stop auto-solve" /></form>
-				</p>
-			</td>
-			<td>
-				<canvas id="perf" width="200px" height="100px"></canvas>
 			</td>
 		</tr>
+		</table>
 
-	</table>
+
 		<script>
 			var options = JSON.parse('{{ options | tojson | safe }}');
 		</script>
-		<script type="text/javascript" src="jquery.min.js"></script>
 		<script type="text/javascript" src="Chart.min.js"></script>
 		<script type="text/javascript" src="solve.js"></script>
 		<script type="text/javascript" src="minesweeper.js"></script>

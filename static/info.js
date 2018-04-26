@@ -11,15 +11,23 @@ new Chart(document.getElementById("perf"), {
     ]
   },
   options: {
+    responsive: true,
     title: {
       display: true,
-      text: 'World population per region (in millions)'
+      text: 'Performance'
     },
     legend: {
       display: false
     },
     tooltips: {
       enabled: false
+    },
+    scales: {
+      yAxes: [{
+        ticks: {
+          beginAtZero: true,
+        }
+      }]
     }
   }
 });

@@ -46,12 +46,16 @@ function Board() {
 		theCounter.setTo( this.num.bombs );
 		theTimer.reset();
 		this.setFace("neutral");
+		document.getElementById("solve_auto").firstChild.disabled = false;
+		document.getElementById("solve_next").firstChild.disabled = false;
 	}
 	
 	this.endGame = function(win) {
 		this.game = OVER;
 		theTimer.stop();
-		this.setFace( win ? "happy" : "sad" );
+		this.setFace( win ? "happy" : "dead" );
+		document.getElementById("solve_auto").firstChild.disabled = true;
+		document.getElementById("solve_next").firstChild.disabled = true;
 	}
 	
 	this.makeBoard = function(p, t) {
@@ -163,6 +167,12 @@ function Tile(i,j) {
 		self.rightClick();
 		return false;
 	};
+	this.tdElt.onmouseover = function(e) {
+		self.hover();
+	};
+	this.tdElt.onmouseout = function(e) {
+		self.unhover();
+	};
 
 	this.reset();
 }
@@ -172,6 +182,19 @@ Tile.prototype = {
 		this.bomb = false
 		this.status = COVERED//		this.bombNeighbors = -1;	//unrevealed--not used in javascript version
 		this.setImage( addSize("covered-"), retString("") );
+	},
+
+	hover: function(evtObj) {
+		if (theBoard.game == OVER) return false;
+		if (this.status == COVERED)
+			theBoard.setFace("worried");
+		else
+			theBoard.setFace("neutral");
+	},
+
+	unhover: function(evtObj) {
+		if (theBoard.game == OVER) return false;
+		theBoard.setFace("neutral");
 	},
 	
 	rightClick: function(evtObj) {
@@ -221,6 +244,7 @@ Tile.prototype = {
 			theBoard.endGame(false);	//you lose
 		}
 		else {
+			theBoard.setFace("neutral");
 			this.uncoverNonbomb();
 		}
 	},

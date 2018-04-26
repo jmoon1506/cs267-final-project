@@ -169,12 +169,15 @@ def is_opened(board, index):
 
 def solve(board):
     if is_unopened(board, (0, 0)):
-        return [0, 0]
+        return [0, 0, 0, 0, 0]
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     linear_mat, edge_num, pos_var = prepare(board)
     linear_mat_np = np.matrix(linear_mat)  # Convert to np matrix.
     edge_num_np = np.matrix(edge_num)  # Convert to np matrix.
+    time_custom_reduction = 0
+    time_partial_bp_solver = 0
+    time_bp_solver = 0
 
     minesweeper_logger.debug("Edge num is: \n%s", edge_num_np)
     # Augment the matrix to do LU decomposition.
@@ -187,9 +190,9 @@ def solve(board):
 
     start_custom_reduction = time.time()
     reduced_u = custom_reduction(u)
-    end_custom_reduction = time.time()
+    time_custom_reduction = time.time() - start_custom_reduction
     minesweeper_logger.debug("Reduced U matrix of lin. eqns joined matrix is: \n%s", reduced_u)
-    minesweeper_logger.info("Custom reduction took \n%s", end_custom_reduction - start_custom_reduction)
+    minesweeper_logger.info("Custom reduction took \n%s", time_custom_reduction)
 
     edge_num_reduced = list(reduced_u[:, -1])
     linear_mat_reduced = reduced_u[:, :-1]
@@ -208,9 +211,9 @@ def solve(board):
         minesweeper_logger.debug("selected b \n%s", selected_b)
         start_partial_bp_solver = time.time()
         partial_feasible_sol = solve_binary_program(selected_rows, selected_b)
-        end_partial_bp_solver = time.time()
+        time_partial_bp_solver = time.time() - start_partial_bp_solver
         minesweeper_logger.info("Partial feasible sol is \n%s", partial_feasible_sol)
-        minesweeper_logger.info("Partial BP solver took \n%s", end_partial_bp_solver - start_partial_bp_solver)
+        minesweeper_logger.info("Partial BP solver took \n%s", time_partial_bp_solver)
 
         # Imagine that we have distributed
         feas_sol = []
@@ -230,10 +233,10 @@ def solve(board):
 
     start_bp_solver = time.time()
     serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-    end_bp_solver = time.time()
+    time_bp_solver = time.time() - start_bp_solver
     if len(partial_feasible_sol) <= 2:
         feas_sol = serial_feasible_soln
-    minesweeper_logger.info("BP Solver took \n%s", end_bp_solver - start_bp_solver)
+    minesweeper_logger.info("BP Solver took \n%s", time_bp_solver)
 
     minesweeper_logger.debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
     minesweeper_logger.debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
@@ -244,7 +247,10 @@ def solve(board):
     y_index = tile_to_open / length_of_row
     x_index = tile_to_open % length_of_row
 
-    return [x_index, y_index]
+
+    # output = {"pos":[x_index, y_index], "times":[time_custom_reduction, time_partial_bp_solver, time_bp_solver]}
+    # return [x_index, y_index]
+    return [x_index, y_index, time_custom_reduction, time_partial_bp_solver, time_bp_solver]
 
 
 def prepare(board):
