@@ -9,6 +9,10 @@ function Controls() {
 	this.newGame = document.getElementById("newgame");
 	this.ctrlElements = this.controlsForm.elements;
 	this.auto_solve = options.autostart;
+	if (this.auto_solve)
+		document.getElementById('solve_auto').firstChild.value = "Stop auto-solve";
+	else
+		document.getElementById('solve_auto').firstChild.value = "Start auto-solve";
 
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();
