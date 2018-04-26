@@ -201,7 +201,7 @@ def solve(board):
 
     if rank == 0:
         if is_unopened(board, (0, 0)):
-            return [0, 0]
+            return [0, 0, 0, 0, 0]
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     if rank == 0:
@@ -274,7 +274,7 @@ def solve(board):
         print("HI FROM PROC 1")
 
     parallel_feasible_solutions = [] # All procs initailize this to be entry.
-    if partial_feasible_solution != None and len(partial_feasible_solution) > 0: # This means that the root sent me something
+    if partial_feasible_solution is not None and len(partial_feasible_solution) > 0: # This means that the root sent me something
         for j, sol in enumerate(partial_feasible_solution):
             # All processors go through their list of partial_feasible_solutions
             # set timer
