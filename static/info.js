@@ -79,3 +79,11 @@ var theChart = new Chart(document.getElementById("perf"), {
     }
   }
 });
+
+function hover_perf(e) {
+  theChart.options.tooltips.enabled = true;
+};
+
+function unhover_perf(e) {
+  theChart.options.tooltips.enabled = false;
+};
