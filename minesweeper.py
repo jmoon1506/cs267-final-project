@@ -18,7 +18,7 @@ logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:
 minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
 
-NUM_THREADS = 16
+NUM_THREADS = 32
 class myThread (threading.Thread):
    def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
       threading.Thread.__init__(self)
