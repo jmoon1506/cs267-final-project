@@ -226,7 +226,7 @@ def solve(board):
     else:
         partial_feasible_solution = None
     # First bin_programming solve subproblem
-    if len(selected_b) != 0 and rank == 0:
+    if rank == 0 and len(selected_b) != 0:
         minesweeper_logger.debug("selected rows \n%s", selected_rows)
         minesweeper_logger.debug("selected b \n%s", selected_b)
         start_partial_bp_solver = time.time()
@@ -240,7 +240,7 @@ def solve(board):
         if len(partial_feasible_solution) > 2:
             partial_feasible_solution = comm.scatter(partial_feasible_solution, root=0)
             # Broadcast all the data required.
-            comm.Bcast(linear_mat_reduced) 
+            comm.Bcast(linear_mat_reduced)
             comm.Bcast(edge_num_reduced)
             comm.Bcast(new_pos_var)
             comm.Bcast(pos_var)
