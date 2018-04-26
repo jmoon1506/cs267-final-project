@@ -43,11 +43,21 @@ TODO
 		</tr>
 		<tr>
 			<td valign="top" align="center">
-				<p>
-					<form id="newgame"><input type="submit" name="newgame" class="button" value="New Game" /></form>&nbsp;&nbsp;
-					<form id="solve_next"><input type="submit" name="solve_next" class="button" value="Solve" /></form>&nbsp;&nbsp;
-					<form id="solve_auto"><input type="submit" name="solve_auto" class="button" value="Stop auto-solve" /></form>
-				</p>
+				<table cellpadding="0px">
+					<tr>
+						<td><form id="newgame"><input type="submit" name="newgame" class="button" value="New Game" /></form></td>
+						<td><form id="solve_next"><input type="submit" name="solve_next" class="button" value="Solve" /></form></td>
+						<td><form id="solve_auto"><input type="submit" name="solve_auto" class="button" value="Stop auto-solve" /></form></td>
+					</tr>
+					<tr style="padding-bottom: 4px;"">
+						<td colspan="3">Random seed: <span id="seed" class="seed" onclick='seed_click(event)'></span></td>
+					</tr>
+					<tr id="newseed" style="visibility: hidden;">
+						<form id="newseed_form">
+							<td colspan="3"><span style="visibility: hidden;">Random seed: </span><input type="text" id="newseed_input" value="" maxlength=6 style="width: 50px;"/>&nbsp;&nbsp;<input type="submit" id="newseed_submit" value="Apply"/></td>
+						</form>
+					</tr>
+				</table>
 			</td>
 			<td id="leftcolumn">
 				<form id="controls">
@@ -92,6 +102,7 @@ TODO
 		<script>
 			var options = JSON.parse('{{ options | tojson | safe }}');
 		</script>
+		<script type="text/javascript" src="jsrand.min.js"></script>
 		<script type="text/javascript" src="Chart.min.js"></script>
 		<script type="text/javascript" src="solve.js"></script>
 		<script type="text/javascript" src="minesweeper.js"></script>

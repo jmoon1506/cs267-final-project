@@ -226,6 +226,15 @@
 	border-radius: 6px;
 }
 
+.seed {
+	text-decoration: none;
+}
+
+.seed:hover {
+	text-decoration: underline;
+	cursor:pointer;
+}
+
 /* a weird bug, at least in Chrome, causes this to display one row of pixels on the right and
 bottom in "border-collapse: collapse" mode...  
 */

@@ -3,6 +3,7 @@ var theCounter;
 var theBoard;
 var theControls;
 var gameId = 0;
+var seed = 4321;
 
 onload = init;
 
@@ -11,9 +12,9 @@ function init() {
 	theCounter = new Counter("counter");
 	theBoard = new Board();
 
-/*	window.onbeforeunload = function() {
-		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
-	}*/
+	document.getElementById("newseed_input").value = seed;
+	document.getElementById("seed").innerHTML = seed;
+
 	theControls = new Controls();
 	if (theControls.auto_solve)
 		theControls.request_solve();
@@ -41,6 +42,7 @@ function Board() {
 	}
 
 	this.newGame = function() {
+		Srand.seed(seed);
 		this.game = WAITING;
 		this.allTiles( function(t) { t.reset() } );
 		theBoard.setBombs( this.num.bombs );
@@ -100,7 +102,7 @@ function Board() {
 		this.nonBombs = n - k;
 		while ( n > 0 ) {
 			n--;
-			if ( Math.random() < k/n ) {	//prob of bomb should be k/n, never true if k=0, always true if k=n
+			if ( Srand.random() < k/n ) {	//prob of bomb should be k/n, never true if k=0, always true if k=n
 				var j = n % this.num.cols;
 				var i = Math.floor(n / this.num.cols);
 				this.board[i][j].bomb = true;

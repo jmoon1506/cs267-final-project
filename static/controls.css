@@ -62,6 +62,14 @@ form {
 .showcustom {
 	visibility:		visible;
 }
+
+.hidenewseed {
+	visibility:		hidden;
+}
+
+.shownewseed {
+	visibility:		visible;
+}
 /*
 #bomberrormsg {
 	width:			15em;
