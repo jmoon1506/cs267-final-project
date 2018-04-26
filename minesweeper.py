@@ -236,7 +236,7 @@ def solve(board):
     linear_mat_reduced = reduced_u[:, :-1]
 
     # Select rows that we want to solve as a subproblem in the serial part.
-    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = NUM_THREADS)
+    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = NUM_THREADS/2)
     selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
 
     minesweeper_logger.debug("Selected rows \n%s", selected_rows)
