@@ -180,11 +180,25 @@ def is_unopened(board, index):
 def is_opened(board, index):
     return not is_unopened(board, index)
 
+def set_array_for_scatter(arr):
+    num_processors = comm.size
+    new_arr = [[] for i in range(num_processors)] # This MUST have size comm.size by the end.
+
+    for i, elem in enumerate(arr):
+        array_index = i % num_processors
+        new_arr[array_index].append(elem)
+
+    return new_arr
 
 ####################################################
 # Central method. Selects which tile to open
 #################################################
 def solve(board):
+    linear_mat_reduced = None
+    edge_num_reduced = None
+    new_pos_var = None
+    pos_var = None
+
     if rank == 0:
         if is_unopened(board, (0, 0)):
             return [0, 0]
@@ -236,17 +250,29 @@ def solve(board):
         minesweeper_logger.info("Partial BP solver took \n%s", end_partial_bp_solver - start_partial_bp_solver)
         minesweeper_logger.info("Partial feas sol len \n%s", len(partial_feasible_solution))
 
+
     if rank == 0:
+        minesweeper_logger.debug("Partial feasible solution length is, %s", len(partial_feasible_solution))
         if len(partial_feasible_solution) > 2:
-            partial_feasible_solution = comm.scatter(partial_feasible_solution, root=0)
+            to_scatter = set_array_for_scatter(partial_feasible_solution)
+            partial_feasible_solution = comm.scatter(to_scatter, root=0)
             # Broadcast all the data required.
-            comm.Bcast(linear_mat_reduced)
-            comm.Bcast(edge_num_reduced)
-            comm.Bcast(new_pos_var)
-            comm.Bcast(pos_var)
+            minesweeper_logger.info("Scattered partial_feasible_solution, now broadcasting from rank 0...")
+
+    comm.bcast(linear_mat_reduced, root=0)
+    comm.bcast(edge_num_reduced, root=0)
+    comm.bcast(new_pos_var, root=0)
+    comm.bcast(pos_var, root=0)
+    if rank == 0:
+        minesweeper_logger.info("Finished broadcast from rank 0...")
+    comm.Barrier()
+
+
+    if rank == 1:
+        print("HI FROM PROC 1")
 
     parallel_feasible_solutions = [] # All procs initailize this to be entry.
-    if partial_feasible_solution != None: # This means that the root sent me something
+    if partial_feasible_solution != None and len(partial_feasible_solution) > 0: # This means that the root sent me something
         for j, sol in enumerate(partial_feasible_solution):
             # All processors go through their list of partial_feasible_solutions
             # set timer
@@ -255,9 +281,15 @@ def solve(board):
             parallel_feasible_solutions.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints)) # All processors solve.
             end_time_parallel_proc = time.time()
 
-            minesweeper_logger.info("Proc {} took \n%s".format(j), end_time_parallel_proc - time_parallel_proc) # All processors log.
+            print("Proc {} took \n%s".format(rank), end_time_parallel_proc - time_parallel_proc) # All processors log.
+    comm.Barrier()
+    if rank == 0:
+        minesweeper_logger.info("Unclear whats happening...........")
 
     parallel_feasible_solutions = comm.gather(parallel_feasible_solutions, root=0)
+    minesweeper_logger.info("Unclear whats happening")
+    if rank == 0:
+        minesweeper_logger.info("Finished gathering...")
 
     if rank == 0:
         if len(partial_feasible_solution) <= 2:
@@ -406,7 +438,8 @@ def solve_next():
 
 
 if __name__ == '__main__':
-    port = 5000 + random.randint(0, 999)
-    url = "http://127.0.0.1:{0}".format(port)
-    threading.Timer(2.0, lambda: webbrowser.open(url)).start()
-    app.run(port=port, debug=False)
+    # if rank == 0:
+        port = 5000 + random.randint(0, 999)
+        url = "http://127.0.0.1:{0}".format(port)
+        threading.Timer(2.0, lambda: webbrowser.open(url)).start()
+        app.run(port=port, debug=False)
