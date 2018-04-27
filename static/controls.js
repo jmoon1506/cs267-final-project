@@ -92,6 +92,8 @@ Controls.prototype = {
 			theChart.data.datasets[2].data = [];
 			theChart.update();
 		}
+		window.clearInterval(computeTimerObj);
+		computeTimerObj = null;
 
 		var els = this.ctrlElements;
 		if (els.level.value == 'c') {
@@ -154,13 +156,13 @@ Controls.prototype = {
 			contentType: 'application/json; charset=utf-8',
 			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId,"procType":procType}),
 			success: function(callback) {
+				window.clearInterval(computeTimerObj);
+				computeTimerObj = null;
 				if (callback[7] != gameId || theBoard.game == OVER) return;
 				if (turn > theChart.data.labels.length)
 					theChart.data.labels.push(turn);
 				turn++;
-
-				window.clearInterval(computeTimerObj);
-				computeTimerObj = null;
+				
 				totalComputeTime += computeTime;
 /*				var elems = theChart.data.labels.length;
 				if (elems > 10) {
@@ -182,6 +184,8 @@ Controls.prototype = {
 				}
 			},
 			error: function(error) {
+				window.clearInterval(computeTimerObj);
+				computeTimerObj = null;
 				console.log(error);
 			}
 		});
