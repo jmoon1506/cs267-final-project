@@ -95,6 +95,43 @@ def choose_rows(U, b, num_threads):
     else:
         return np.array(possible_rows[:]), selected_b[:]
 
+def choose_clear_grids(u):
+    clear_grids_index = []
+    solved_rows = []  # Rows that are uniquely solved.
+
+    for i in range(len(u)):  # Iterate through the rows of u
+        row = u[i]  # Get the row
+        unique, counts = np.unique(row, return_counts=True)
+        counts_map = dict(zip(unique, counts))
+
+        if 1.0 not in counts_map:
+            counts_map[1.0] = 0
+        if -1.0 not in counts_map:
+            counts_map[-1.0] = 0
+        if 0.0 not in counts_map:
+            counts_map[0.0] = 0
+
+        if counts_map[1.0] > 0:
+            if counts_map[1.0] == 2 and row[-1] == 1:  # If there is a single 1 and a 1 at the end.
+                # Then reduce with row
+                solved_rows.append(i)  # This row is fully solved.
+                u = reduce_row(u, row, i, solved_rows)
+            elif counts_map[1.0] + counts_map[-1.0] == 1 and row[-1] == 0:  # If there is a single 1 and a 0 at the end.
+                solved_rows.append(i)  # This row is fully solved
+                clear_grids_index.append(i)
+                u = reduce_row(u, row, i, solved_rows)
+
+        if counts_map[-1.0] > 0:
+            if counts_map[-1.0] == 1 and row[-1] == 1:
+                solved_rows.append(i)
+                u = reduce_row(u, row, i, solved_rows, minus_one=True)
+            elif counts_map[1.0] + counts_map[-1.0] == 1 and row[-1] == 0:
+                solved_rows.append(i)
+                clear_grids_index.append(i)
+                u = reduce_row(u, row, i, solved_rows, minus_one=True)
+        else:
+            pass
+    return clear_grids_index
 
 def custom_reduction(u):
     """
@@ -231,6 +268,20 @@ def solve_step(board):
 
     minesweeper_logger.debug("U matrix of linear equations joined matrix is: \n%s", u)
 
+    clear_grid_index = choose_clear_grids(u)
+    if len(clear_grid_index) > 0:
+        print "I am sure"
+        clear_grid_early = []
+        for i in range(len(clear_grid_index)):
+            tile_to_open = pos_var[clear_grid_index[i]]
+            length_of_row = len(board[0])
+            y_index = tile_to_open / length_of_row
+            x_index = tile_to_open % length_of_row
+            clear_grid_early.append([x_index, y_index])
+        return clear_grid_early
+    else:
+        print "I am guessing"
+
     start_custom_reduction = time.time()
     reduced_u = custom_reduction(u)
     end_custom_reduction = time.time()
@@ -239,6 +290,7 @@ def solve_step(board):
 
     edge_num_reduced = list(reduced_u[:, -1])
     linear_mat_reduced = reduced_u[:, :-1]
+
 
     # Select rows that we want to solve as a subproblem in the serial part.
     selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = NUM_THREADS/4)
