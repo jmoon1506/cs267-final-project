@@ -49,7 +49,7 @@ var theChart = new Chart(document.getElementById("perf"), {
           return "Turn " + (tooltipItem[0].index+1);
         },
         label: function(tooltipItem) {
-          return Number(tooltipItem.yLabel).toFixed(4) + " seconds";
+          return Number(tooltipItem.yLabel).toFixed(2) + " seconds";
         }
       }
     },
