@@ -172,11 +172,11 @@ Controls.prototype = {
 					}
 				}*/
 				if (callback[6] == 0)
-					theChart.data.datasets[0].data.push(callback[2]);
+					theChart.data.datasets[0].data.push(computeTime);
 				else if (callback[6] == 1)
-					theChart.data.datasets[1].data.push(callback[2]);
+					theChart.data.datasets[1].data.push(computeTime);
 				else
-					theChart.data.datasets[2].data.push(callback[2]);
+					theChart.data.datasets[2].data.push(computeTime);
 				theChart.update();
 				theBoard.uncoverTile(callback);
 				if (theControls.auto_solve === true) {
