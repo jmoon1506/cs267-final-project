@@ -2,6 +2,14 @@ var theTimer;
 var theCounter;
 var theBoard;
 var theControls;
+var gameId = 1;
+var seed = 7119;
+var turn = 1;
+var procType = 'serial';
+var computeTimer = document.getElementById('computeTime');
+var computeTimerObj = null;
+var computeTime = 0;
+var totalComputeTime = 0;
 
 onload = init;
 
@@ -9,12 +17,12 @@ function init() {
 	theTimer = new Timer("timer");
 	theCounter = new Counter("counter");
 	theBoard = new Board();
-	
-	window.onbeforeunload = function() {
-		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
-	}
+
+	set_seed(seed);
+
 	theControls = new Controls();
-	theControls.request_solve();
+	if (theControls.auto_solve)
+		theControls.request_solve();
 }
 
 function Params(r,c,b) {
@@ -39,18 +47,29 @@ function Board() {
 	}
 
 	this.newGame = function() {
+		gameId++;
+		Srand.seed(seed);
 		this.game = WAITING;
 		this.allTiles( function(t) { t.reset() } );
 		theBoard.setBombs( this.num.bombs );
 		theCounter.setTo( this.num.bombs );
 		theTimer.reset();
 		this.setFace("neutral");
+		document.getElementById("solve_auto").firstChild.disabled = false;
+		document.getElementById("solve_next").firstChild.disabled = false;
+		turn = 1;
 	}
 	
 	this.endGame = function(win) {
 		this.game = OVER;
 		theTimer.stop();
-		this.setFace( win ? "happy" : "sad" );
+		this.setFace( win ? "happy" : "dead" );
+		document.getElementById("solve_auto").firstChild.disabled = true;
+		document.getElementById("solve_next").firstChild.disabled = true;
+		theControls.auto_solve = false;
+		computeTimer.innerHTML = totalComputeTime.toFixed(2) + " total";
+		window.clearInterval(computeTimerObj);
+		computeTimerObj = null;
 	}
 	
 	this.makeBoard = function(p, t) {
@@ -88,7 +107,7 @@ function Board() {
 		this.nonBombs = n - k;
 		while ( n > 0 ) {
 			n--;
-			if ( Math.random() < k/n ) {	//prob of bomb should be k/n, never true if k=0, always true if k=n
+			if ( Srand.random() < k/n ) {	//prob of bomb should be k/n, never true if k=0, always true if k=n
 				var j = n % this.num.cols;
 				var i = Math.floor(n / this.num.cols);
 				this.board[i][j].bomb = true;
@@ -162,6 +181,12 @@ function Tile(i,j) {
 		self.rightClick();
 		return false;
 	};
+	this.tdElt.onmouseover = function(e) {
+		self.hover();
+	};
+	this.tdElt.onmouseout = function(e) {
+		self.unhover();
+	};
 
 	this.reset();
 }
@@ -171,6 +196,19 @@ Tile.prototype = {
 		this.bomb = false
 		this.status = COVERED//		this.bombNeighbors = -1;	//unrevealed--not used in javascript version
 		this.setImage( addSize("covered-"), retString("") );
+	},
+
+	hover: function(evtObj) {
+		if (theBoard.game == OVER) return false;
+		if (this.status == COVERED)
+			theBoard.setFace("worried");
+		else
+			theBoard.setFace("neutral");
+	},
+
+	unhover: function(evtObj) {
+		if (theBoard.game == OVER) return false;
+		theBoard.setFace("neutral");
 	},
 	
 	rightClick: function(evtObj) {
@@ -220,6 +258,7 @@ Tile.prototype = {
 			theBoard.endGame(false);	//you lose
 		}
 		else {
+			theBoard.setFace("neutral");
 			this.uncoverNonbomb();
 		}
 	},
