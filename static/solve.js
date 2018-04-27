@@ -26,11 +26,11 @@ function seed_click(e) {
 
 $('#newseed_form').submit(function(e) {
     e.preventDefault();
-    var newseed = document.getElementById("newseed_input").value;
+    seed = document.getElementById("newseed_input").value;
     // console.log(newseed === seed);
-    if (newseed == seed) return;
-    seed = newseed;
-    document.getElementById("seed").innerHTML = newseed;
+    // if (newseed == seed) return;
+    // seed = newseed;
+    document.getElementById("seed").innerHTML = seed;
     document.getElementById('newseed').style.visibility = 'hidden';
     theControls.auto_solve = false;
     theControls.newGameButton();
