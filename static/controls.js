@@ -130,6 +130,7 @@ Controls.prototype = {
 	},
 
 	request_solve: function() {
+		console.log("send " + gameId);
 		$.ajax({
 			type: 'POST',
 			url: '/api/solve_next',
@@ -137,7 +138,7 @@ Controls.prototype = {
 			contentType: 'application/json; charset=utf-8',
 			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId}),
 			success: function(callback) {
-				console.log(callback);
+				console.log(callback[6]);
 				if (callback[6] != gameId || theBoard.game == OVER) return;
 				theChart.data.labels.push(turn++);
 /*				var elems = theChart.data.labels.length;

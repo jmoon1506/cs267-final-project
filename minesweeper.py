@@ -21,8 +21,9 @@ logging.getLogger("pulp").setLevel(logging.WARNING)
 
 NUM_THREADS = 2
 
-
+# GLOBALS
 clear_grid = []
+gameId = 0
 
 class myThread (threading.Thread):
    def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
@@ -380,11 +381,11 @@ def solve(board):
     times = [0, 0, 0, 0]
     if len(clear_grid) == 0:
         output = solve_step(board)
-        print(output)
+        # print(output)
         times = output['times']
         clear_grid = output['grids']
     next_move = clear_grid[-1]
-    print(next_move)
+    # print(next_move)
     del clear_grid[-1]
     return [next_move[0], next_move[1]] + times
 
@@ -505,7 +506,11 @@ def index():
 
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
+    global gameId, clear_grid
     data = request.get_json()
+    if gameId != data["gameId"]:
+        clear_grid = []
+    gameId = data["gameId"]
     solution = solve(data["board"])
     solution.append(data["gameId"])
     return jsonify(solution)

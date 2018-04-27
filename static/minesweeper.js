@@ -2,7 +2,7 @@ var theTimer;
 var theCounter;
 var theBoard;
 var theControls;
-var gameId = 0;
+var gameId = 1;
 var seed = 4321;
 
 onload = init;
