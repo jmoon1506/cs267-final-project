@@ -1,4 +1,3 @@
-
 var theChart = new Chart(document.getElementById("perf"), {
   type: 'line',
   data: {
@@ -8,18 +7,21 @@ var theChart = new Chart(document.getElementById("perf"), {
         data: [],
         label: "Serial",
         borderColor: "#75B9BE",
+        backgroundColor: "#75B9BE",
         fill: false
       },
       { 
         data: [],
-        label: "Parallel (shared memory)",
+        label: "Shared memory",
         borderColor: "#EE7674",
+        backgroundColor: "#EE7674",
         fill: false
       },
       { 
         data: [],
-        label: "Parallel (distributed memory)",
+        label: "Distributed memory",
         borderColor: "#A6B1E1",
+        backgroundColor: "#A6B1E1",
         fill: false
       },
     ]

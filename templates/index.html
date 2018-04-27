@@ -58,6 +58,16 @@ TODO
 							<td colspan="3"><span style="visibility: hidden;">Random seed: </span><input type="text" id="newseed_input" value="" maxlength=6 style="width: 50px;"/>&nbsp;&nbsp;<input type="submit" id="newseed_submit" value="Apply"/></td>
 						</form>
 					</tr>
+					<tr><td colspan="3">
+						<fieldset id="proc">
+						<legend>Parallelism</legend>
+						<form id="proc_form">
+						<label><input type="radio" name="proc" onclick="proc_click(event, 'serial')" checked="checked" />None (serial)</label><br />
+						<label><input type="radio" name="proc" onclick="proc_click(event, 'shared')"  />Shared memory</label><br />
+						<label><input type="radio" name="proc" onclick="proc_click(event, 'distrib')" />Distributed memory</label><br />
+						</form>
+						</fieldset>
+					</td></tr>
 				</table>
 			</td>
 			<td id="leftcolumn">

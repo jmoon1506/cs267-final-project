@@ -376,7 +376,7 @@ def solve_step(board):
     return {'grids':grids, 'times':[time_solve_step, time_bp_solver, time_partial_bp_solver, time_custom_reduction]}
 
 
-def solve(board):
+def solve_serial(board):
     global clear_grid
     times = [0, 0, 0, 0]
     if len(clear_grid) == 0:
@@ -389,6 +389,11 @@ def solve(board):
     del clear_grid[-1]
     return [next_move[0], next_move[1]] + times
 
+def solve_shared(board):
+    return solve_serial(board)
+
+def solve_distributed(board):
+    return solve_serial(board)
 
 def prepare(board):
     """
@@ -511,7 +516,19 @@ def solve_next():
     if gameId != data["gameId"]:
         clear_grid = []
     gameId = data["gameId"]
-    solution = solve(data["board"])
+    solution = []
+    if data["procType"] == "serial":
+        solution = solve_serial(data["board"])
+        solution.append(0)
+    elif data["procType"] == "shared":
+        solution = solve_shared(data["board"])
+        solution.append(1)
+    elif data["procType"] == "distrib":
+        solution = solve_distributed(data["board"])
+        solution.append(2)
+    else:
+        print("invalid procType")
+        return
     solution.append(data["gameId"])
     return jsonify(solution)
 

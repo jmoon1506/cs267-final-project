@@ -3,7 +3,9 @@ var theCounter;
 var theBoard;
 var theControls;
 var gameId = 1;
-var seed = 4321;
+var seed = 7119;
+var turn = 1;
+var procType = 'serial';
 
 onload = init;
 
@@ -52,9 +54,6 @@ function Board() {
 		document.getElementById("solve_auto").firstChild.disabled = false;
 		document.getElementById("solve_next").firstChild.disabled = false;
 		turn = 1;
-		theChart.data.labels = [];
-		theChart.data.datasets[0].data = [];
-		theChart.update();
 	}
 	
 	this.endGame = function(win) {

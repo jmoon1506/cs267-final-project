@@ -1,4 +1,3 @@
-var turn = 1;
 var paramObj = {
 	b:	new Params( 16, 16, 48 ),
 	i:	new Params( 24, 24, 96 ),
@@ -23,6 +22,7 @@ function Controls() {
 		theControls.auto_solve = false;
 		Srand.seed(Date.now());
 		set_seed(Math.floor(Srand.random()*10000))
+		
 		theControls.newGameButton();
 	}
 	
@@ -83,7 +83,15 @@ Controls.prototype = {
 		return theControls.validateNum(theControls.bombform, 0, 9999, "bomberror", soft);
 	},
 	
-	newGameButton: function(e) {
+	newGameButton: function(redrawChart=true) {
+		if (redrawChart) {
+			theChart.data.labels = [];
+			theChart.data.datasets[0].data = [];
+			theChart.data.datasets[1].data = [];
+			theChart.data.datasets[2].data = [];
+			theChart.update();
+		}
+
 		var els = this.ctrlElements;
 		if (els.level.value == 'c') {
 			this.rows = this.validateNum(theControls.rowform, 1, 99, "rowerror", false);
@@ -125,22 +133,24 @@ Controls.prototype = {
 		}
 		else {
  			theControls.customform.setAttribute("class", "hidecustom" );
-			if ( theBoard.game != PLAYING ) theControls.newGameButton(e);
+			if ( theBoard.game != PLAYING ) theControls.newGameButton();
 		}
 	},
 
 	request_solve: function() {
-		console.log("send " + gameId);
+		// console.log("send " + gameId);
 		$.ajax({
 			type: 'POST',
 			url: '/api/solve_next',
 			dataType: 'json',
 			contentType: 'application/json; charset=utf-8',
-			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId}),
+			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId,"procType":procType}),
 			success: function(callback) {
-				console.log(callback[6]);
-				if (callback[6] != gameId || theBoard.game == OVER) return;
-				theChart.data.labels.push(turn++);
+				// console.log(callback[6]);
+				if (callback[7] != gameId || theBoard.game == OVER) return;
+				if (turn > theChart.data.labels.length)
+					theChart.data.labels.push(turn);
+				turn++;
 /*				var elems = theChart.data.labels.length;
 				if (elems > 10) {
 					for (var i = 0; i < elems; i++) {
@@ -148,9 +158,12 @@ Controls.prototype = {
 							theChart.data.labels[i] = '';
 					}
 				}*/
-				theChart.data.datasets[0].data.push(callback[2]);
-				// theChart.data.datasets[1].data.push(callback[3]);
-				// theChart.data.datasets[2].data.push(callback[4]);
+				if (callback[6] == 0)
+					theChart.data.datasets[0].data.push(callback[2]);
+				else if (callback[6] == 1)
+					theChart.data.datasets[1].data.push(callback[2]);
+				else
+					theChart.data.datasets[2].data.push(callback[2]);
 				theChart.update();
 				theBoard.uncoverTile(callback);
 				if (theControls.auto_solve === true) {
