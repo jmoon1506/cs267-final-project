@@ -14,3 +14,24 @@ $('#solve_auto').submit(function(e) {
         this.firstChild.value = "Start auto-solve";
     }
 });
+
+function seed_click(e) {
+    var newseed = document.getElementById('newseed');
+    if (newseed.style.visibility === 'hidden') {
+        newseed.style.visibility = 'visible';
+    } else {
+        newseed.style.visibility = 'hidden';
+    }
+};
+
+$('#newseed_form').submit(function(e) {
+    e.preventDefault();
+    var newseed = document.getElementById("newseed_input").value;
+    // console.log(newseed === seed);
+    if (newseed == seed) return;
+    seed = newseed;
+    document.getElementById("seed").innerHTML = newseed;
+    document.getElementById('newseed').style.visibility = 'hidden';
+    theControls.auto_solve = false;
+    theControls.newGameButton();
+});

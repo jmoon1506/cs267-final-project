@@ -252,7 +252,7 @@ def is_opened(board, index):
 
 def solve_step(board):
     if is_unopened(board, (0, 0)):
-        return [[0, 0]]
+        return {'grids':[[0, 0]], 'times':[0, 0, 0]}
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     linear_mat, edge_num, pos_var = prepare(board)
@@ -278,15 +278,20 @@ def solve_step(board):
             y_index = tile_to_open / length_of_row
             x_index = tile_to_open % length_of_row
             clear_grid_early.append([x_index, y_index])
-        return clear_grid_early
+        # return clear_grid_early
+        return {'grids':clear_grid_early, 'times':[0, 0, 0]}
     else:
         print "I am guessing"
 
+    time_custom_reduction = 0
+    time_partial_bp_solver = 0
+    time_bp_solver = 0
+
     start_custom_reduction = time.time()
     reduced_u = custom_reduction(u)
-    end_custom_reduction = time.time()
+    time_custom_reduction = time.time() - start_custom_reduction
     minesweeper_logger.debug("Reduced U matrix of lin. eqns joined matrix is: \n%s", reduced_u)
-    minesweeper_logger.info("Custom reduction took \n%s", end_custom_reduction - start_custom_reduction)
+    minesweeper_logger.info("Custom reduction took \n%s", time_custom_reduction)
 
     edge_num_reduced = list(reduced_u[:, -1])
     linear_mat_reduced = reduced_u[:, :-1]
@@ -306,9 +311,9 @@ def solve_step(board):
         minesweeper_logger.debug("selected b \n%s", selected_b)
         start_partial_bp_solver = time.time()
         partial_feasible_sol = solve_binary_program(selected_rows, selected_b)
-        end_partial_bp_solver = time.time()
+        time_partial_bp_solver = time.time() - start_partial_bp_solver
         minesweeper_logger.info("Partial feasible sol is \n%s", partial_feasible_sol)
-        minesweeper_logger.info("Partial BP solver took \n%s", end_partial_bp_solver - start_partial_bp_solver)
+        minesweeper_logger.info("Partial BP solver took \n%s", time_partial_bp_solver)
 
         # Imagine that we have distributed
         feas_sol = []
@@ -336,9 +341,9 @@ def solve_step(board):
     if len(partial_feasible_sol) <= 1:
         start_bp_solver = time.time()
         serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-        end_bp_solver = time.time()
+        time_bp_solver = time.time() - start_bp_solver
         feas_sol = serial_feasible_soln
-        minesweeper_logger.info("BP Solver took \n%s", end_bp_solver - start_bp_solver)
+        minesweeper_logger.info("BP Solver took \n%s", time_bp_solver)
 
     minesweeper_logger.debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
     #minesweeper_logger.debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
@@ -360,16 +365,21 @@ def solve_step(board):
         x_index = tile_to_open % length_of_row
         grids.append([x_index, y_index])
 
-    return grids
+    return {'grids':grids, 'times':[time_bp_solver, time_partial_bp_solver, time_custom_reduction]}
 
 
 def solve(board):
     global clear_grid
+    times = [0, 0, 0]
     if len(clear_grid) == 0:
-        clear_grid = solve_step(board)
+        output = solve_step(board)
+        print(output)
+        times = output['times']
+        clear_grid = output['grids']
     next_move = clear_grid[-1]
+    print(next_move)
     del clear_grid[-1]
-    return next_move
+    return [next_move[0], next_move[1]] + times
 
 
 def prepare(board):
@@ -489,8 +499,9 @@ def index():
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
     data = request.get_json()
-    # print(data)
-    return jsonify(solve(data))
+    solution = solve(data["board"])
+    solution.append(data["gameId"])
+    return jsonify(solution)
 
 
 if __name__ == '__main__':

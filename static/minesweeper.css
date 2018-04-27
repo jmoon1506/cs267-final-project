@@ -1,11 +1,12 @@
 #box {
 	border-collapse:	collapse;
 	text-align:			center;
+	border:             2px solid grey;
 }
 
 #box td {
 	padding:		0px;
-	border:			2px solid Gray;
+	/*border:			2px solid Gray;*/
 /*	box-shadow:		1px 1px 0px Gray inset;
 	box-shadow:		-1px -1px 0px Gray inset;*/
 }
@@ -178,7 +179,6 @@
 	color:	Gray
 }
 
-
 .readout {
 	margin: 			3px auto;
 	width:				44px;
@@ -186,6 +186,7 @@
 	padding:			5px 0px 2px;
 	color:				#ff0000;
 	background-color:	black;
+	border:             2px solid grey;
 }
 
 @font-face {
@@ -206,8 +207,32 @@
 	background:	url("graphics/happy.gif") no-repeat center center;
 }
 
-.sad {
-	background:	url("graphics/sad.gif") no-repeat center center;
+.dead {
+	background:	url("graphics/dead.gif") no-repeat center center;
+}
+
+.worried {
+	background:	url("graphics/worried.gif") no-repeat center center;
+}
+
+.ui-tooltip {
+	padding: 8px;
+	position: absolute;
+	z-index: 9999;
+	max-width: 300px;
+	background: white;
+	border: 2px solid black;
+	color: black;
+	border-radius: 6px;
+}
+
+.seed {
+	text-decoration: none;
+}
+
+.seed:hover {
+	text-decoration: underline;
+	cursor:pointer;
 }
 
 /* a weird bug, at least in Chrome, causes this to display one row of pixels on the right and
