@@ -235,6 +235,14 @@
 	cursor:pointer;
 }
 
+h1, h2, h3, h4 {
+	font-family: 'Source Sans Pro', sans-serif;
+	padding-top: 0px;
+	padding-bottom: 0px;
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
+
 /* a weird bug, at least in Chrome, causes this to display one row of pixels on the right and
 bottom in "border-collapse: collapse" mode...  
 */

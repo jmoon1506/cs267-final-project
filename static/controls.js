@@ -136,7 +136,9 @@ Controls.prototype = {
 		}
 		else {
  			theControls.customform.setAttribute("class", "hidecustom" );
-			if ( theBoard.game != PLAYING ) theControls.newGameButton();
+			// if ( theBoard.game != PLAYING ) theControls.newGameButton();
+			theControls.auto_solve = false;
+			theControls.newGameButton();
 		}
 	},
 
