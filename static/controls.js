@@ -1,8 +1,8 @@
 var turn = 1;
 var paramObj = {
-	b:	new Params( 8, 8, 8 ),
-	i:	new Params( 16, 16, 32 ),
-	a:	new Params( 16, 32, 64 )
+	b:	new Params( 16, 16, 48 ),
+	i:	new Params( 24, 24, 96 ),
+	a:	new Params( 32, 32, 140 )
 }
 
 function Controls() {
@@ -21,6 +21,7 @@ function Controls() {
 	this.newGame.onsubmit = function(e) {
 		e.preventDefault();
 		theControls.auto_solve = false;
+		Srand.seed(Date.now());
 		set_seed(Math.floor(Srand.random()*10000))
 		theControls.newGameButton();
 	}
