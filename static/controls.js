@@ -84,6 +84,7 @@ Controls.prototype = {
 	},
 	
 	newGameButton: function(redrawChart=true) {
+		totalComputeTime = 0;
 		if (redrawChart) {
 			theChart.data.labels = [];
 			theChart.data.datasets[0].data = [];
@@ -139,6 +140,13 @@ Controls.prototype = {
 
 	request_solve: function() {
 		// console.log("send " + gameId);
+		computeTimer.innerHTML = 0;
+		computeTime = 0;
+		computeTimerObj = window.setInterval(function() {
+			computeTime += 0.01;
+			if (Date.now() % 8 === 0)
+				computeTimer.innerHTML = computeTime.toFixed(2);
+		}, 10);
 		$.ajax({
 			type: 'POST',
 			url: '/api/solve_next',
@@ -146,11 +154,14 @@ Controls.prototype = {
 			contentType: 'application/json; charset=utf-8',
 			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId,"procType":procType}),
 			success: function(callback) {
-				// console.log(callback[6]);
 				if (callback[7] != gameId || theBoard.game == OVER) return;
 				if (turn > theChart.data.labels.length)
 					theChart.data.labels.push(turn);
 				turn++;
+
+				window.clearInterval(computeTimerObj);
+				computeTimerObj = null;
+				totalComputeTime += computeTime;
 /*				var elems = theChart.data.labels.length;
 				if (elems > 10) {
 					for (var i = 0; i < elems; i++) {

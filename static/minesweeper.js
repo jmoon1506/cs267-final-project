@@ -6,6 +6,10 @@ var gameId = 1;
 var seed = 7119;
 var turn = 1;
 var procType = 'serial';
+var computeTimer = document.getElementById('computeTime');
+var computeTimerObj = null;
+var computeTime = 0;
+var totalComputeTime = 0;
 
 onload = init;
 
@@ -63,6 +67,9 @@ function Board() {
 		document.getElementById("solve_auto").firstChild.disabled = true;
 		document.getElementById("solve_next").firstChild.disabled = true;
 		theControls.auto_solve = false;
+		computeTimer.innerHTML = totalComputeTime.toFixed(2) + " total";
+		window.clearInterval(computeTimerObj);
+		computeTimerObj = null;
 	}
 	
 	this.makeBoard = function(p, t) {
