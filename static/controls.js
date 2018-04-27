@@ -135,8 +135,8 @@ Controls.prototype = {
 			contentType: 'application/json; charset=utf-8',
 			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId}),
 			success: function(callback) {
-				// console.log(callback);
-				if (callback[5] != gameId || theBoard.game == OVER) return;
+				console.log(callback);
+				if (callback[6] != gameId || theBoard.game == OVER) return;
 				theChart.data.labels.push(turn++);
 /*				var elems = theChart.data.labels.length;
 				if (elems > 10) {
@@ -146,8 +146,8 @@ Controls.prototype = {
 					}
 				}*/
 				theChart.data.datasets[0].data.push(callback[2]);
-				theChart.data.datasets[1].data.push(callback[3]);
-				theChart.data.datasets[2].data.push(callback[4]);
+				// theChart.data.datasets[1].data.push(callback[3]);
+				// theChart.data.datasets[2].data.push(callback[4]);
 				theChart.update();
 				theBoard.uncoverTile(callback);
 				if (theControls.auto_solve === true) {

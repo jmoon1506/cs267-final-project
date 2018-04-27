@@ -251,8 +251,15 @@ def is_opened(board, index):
 
 
 def solve_step(board):
+    time_solve_step = 0
+    time_custom_reduction = 0
+    time_partial_bp_solver = 0
+    time_bp_solver = 0
+
+    start_solve_step = time.time()
+
     if is_unopened(board, (0, 0)):
-        return {'grids':[[0, 0]], 'times':[0, 0, 0]}
+        return {'grids':[[0, 0]], 'times':[0, 0, 0, 0]}
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     linear_mat, edge_num, pos_var = prepare(board)
@@ -279,13 +286,12 @@ def solve_step(board):
             x_index = tile_to_open % length_of_row
             clear_grid_early.append([x_index, y_index])
         # return clear_grid_early
-        return {'grids':clear_grid_early, 'times':[0, 0, 0]}
+        time_solve_step = time.time() - start_solve_step
+        return {'grids':clear_grid_early, 'times':[time_solve_step, 0, 0, 0]}
     else:
         print "I am guessing"
 
-    time_custom_reduction = 0
-    time_partial_bp_solver = 0
-    time_bp_solver = 0
+    
 
     start_custom_reduction = time.time()
     reduced_u = custom_reduction(u)
@@ -365,12 +371,13 @@ def solve_step(board):
         x_index = tile_to_open % length_of_row
         grids.append([x_index, y_index])
 
-    return {'grids':grids, 'times':[time_bp_solver, time_partial_bp_solver, time_custom_reduction]}
+    time_solve_step = time.time() - start_solve_step
+    return {'grids':grids, 'times':[time_solve_step, time_bp_solver, time_partial_bp_solver, time_custom_reduction]}
 
 
 def solve(board):
     global clear_grid
-    times = [0, 0, 0]
+    times = [0, 0, 0, 0]
     if len(clear_grid) == 0:
         output = solve_step(board)
         print(output)

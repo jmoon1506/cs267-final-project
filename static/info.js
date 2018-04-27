@@ -1,28 +1,25 @@
 
 var theChart = new Chart(document.getElementById("perf"), {
-  type: 'bar',
+  type: 'line',
   data: {
     labels: [],
     datasets: [
       { 
         data: [],
-        label: "Complete BP",
-        backgroundColor: "#75B9BE",
-        borderColor: "#3e95cd",
+        label: "Serial",
+        borderColor: "#75B9BE",
         fill: false
       },
       { 
         data: [],
-        label: "Partial BP",
-        backgroundColor: "#EE7674",
-        borderColor: "#3e95cd",
+        label: "Parallel (shared memory)",
+        borderColor: "#EE7674",
         fill: false
       },
       { 
         data: [],
-        label: "Reduction",
-        backgroundColor: "#A6B1E1",
-        borderColor: "#3e95cd",
+        label: "Parallel (distributed memory)",
+        borderColor: "#A6B1E1",
         fill: false
       },
     ]
@@ -56,7 +53,7 @@ var theChart = new Chart(document.getElementById("perf"), {
     },
     scales: {
       xAxes: [{
-        stacked: true,
+        // stacked: true,
         ticks: {
           beginAtZero: true,
           autoSkip: true,
@@ -68,7 +65,7 @@ var theChart = new Chart(document.getElementById("perf"), {
         }
       }],
       yAxes: [{
-        stacked: true,
+        // stacked: true,
         ticks: {
           beginAtZero: true,
         },
