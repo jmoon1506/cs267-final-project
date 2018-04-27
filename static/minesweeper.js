@@ -12,8 +12,7 @@ function init() {
 	theCounter = new Counter("counter");
 	theBoard = new Board();
 
-	document.getElementById("newseed_input").value = seed;
-	document.getElementById("seed").innerHTML = seed;
+	set_seed(seed);
 
 	theControls = new Controls();
 	if (theControls.auto_solve)
@@ -42,6 +41,7 @@ function Board() {
 	}
 
 	this.newGame = function() {
+		gameId++;
 		Srand.seed(seed);
 		this.game = WAITING;
 		this.allTiles( function(t) { t.reset() } );
@@ -55,7 +55,6 @@ function Board() {
 		theChart.data.labels = [];
 		theChart.data.datasets[0].data = [];
 		theChart.update();
-		gameId++;
 	}
 	
 	this.endGame = function(win) {

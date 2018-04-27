@@ -21,6 +21,7 @@ function Controls() {
 	this.newGame.onsubmit = function(e) {
 		e.preventDefault();
 		theControls.auto_solve = false;
+		set_seed(Math.floor(Srand.random()*10000))
 		theControls.newGameButton();
 	}
 	

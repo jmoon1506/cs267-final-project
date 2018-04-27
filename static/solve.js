@@ -35,3 +35,9 @@ $('#newseed_form').submit(function(e) {
     theControls.auto_solve = false;
     theControls.newGameButton();
 });
+
+function set_seed(val) {
+    seed = val;
+    document.getElementById("newseed_input").value = seed;
+    document.getElementById("seed").innerHTML = seed;
+}
