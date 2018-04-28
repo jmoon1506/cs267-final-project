@@ -199,6 +199,10 @@ def solve(board):
     new_pos_var = None
     pos_var = None
 
+    minesweeper_logger.debug("I am rank {}".format(rank))
+    comm.Barrier()
+    minesweeper_logger.debug("I am rank {}".format(rank))
+
     if rank == 0:
         if is_unopened(board, (0, 0)):
             return [0, 0, 0, 0, 0]
@@ -238,10 +242,7 @@ def solve(board):
         minesweeper_logger.debug("New b \n%s", selected_b)
         minesweeper_logger.debug("New pos var \n%s", new_pos_var)
 
-    if rank == 0:
-        partial_feasible_solution = []
-    else:
-        partial_feasible_solution = None
+    partial_feasible_solution = []
     # First bin_programming solve subproblem
     if rank == 0 and len(selected_b) != 0:
         minesweeper_logger.debug("selected rows \n%s", selected_rows)
@@ -254,27 +255,36 @@ def solve(board):
         minesweeper_logger.info("Partial feas sol len \n%s", len(partial_feasible_solution))
 
 
-    if rank == 0:
-        minesweeper_logger.debug("Partial feasible solution length is, %s", len(partial_feasible_solution))
-        if len(partial_feasible_solution) > 2:
-            to_scatter = set_array_for_scatter(partial_feasible_solution)
-            partial_feasible_solution = comm.scatter(to_scatter, root=0)
-            # Broadcast all the data required.
-            minesweeper_logger.info("Scattered partial_feasible_solution, now broadcasting from rank 0...")
-
-    comm.bcast(linear_mat_reduced, root=0)
-    comm.bcast(edge_num_reduced, root=0)
-    comm.bcast(new_pos_var, root=0)
-    comm.bcast(pos_var, root=0)
+    # partial_feasible_solution. Currently, it's NONE in all ranks except for 0.
+    # inside of rank 0 --- 1. its length is more than 2, or its less than 2.
+    # IF the length is < 2... i just wanna do serial.
+    # If the length > 2 --- then I wanna scatter.
+    minesweeper_logger.debug("I am rank {}".format(rank))
+    # if rank == 0:
+    minesweeper_logger.debug("Partial feasible solution length is, %s", len(partial_feasible_solution))
+    # if len(partial_feasible_solution) > 2:
+    to_scatter = set_array_for_scatter(partial_feasible_solution)
+    minesweeper_logger.debug("Going to scatter from rank {}".format(rank))
+    partial_feasible_solution = comm.scatter(to_scatter, root=0)
+    # Broadcast all the data required.
+    minesweeper_logger.info("Scattered partial_feasible_solution, now broadcasting from rank 0...")
+    comm.Barrier()
+    minesweeper_logger.info("Finished with barrier?")
+    linear_mat_reduced = comm.bcast(linear_mat_reduced, root=0)
+    edge_num_reduced = comm.bcast(edge_num_reduced, root=0)
+    new_pos_var = comm.bcast(new_pos_var, root=0)
+    pos_var = comm.bcast(pos_var, root=0)
     if rank == 0:
         minesweeper_logger.info("Finished broadcast from rank 0...")
-    comm.Barrier()
 
-    if rank == 1:
-        print("HI FROM PROC 1")
+    minesweeper_logger.debug("I am rank {}".format(rank))
+    comm.Barrier()
+    minesweeper_logger.debug("I am rank {}".format(rank))
+
 
     parallel_feasible_solutions = [] # All procs initailize this to be entry.
-    if partial_feasible_solution is not None and len(partial_feasible_solution) > 0: # This means that the root sent me something
+    print("I am rank {}".format(rank))
+    if partial_feasible_solution != None and len(partial_feasible_solution) > 0: # This means that the root sent me something
         for j, sol in enumerate(partial_feasible_solution):
             # All processors go through their list of partial_feasible_solutions
             # set timer
@@ -284,12 +294,13 @@ def solve(board):
             end_time_parallel_proc = time.time()
 
             print("Proc {} took \n%s".format(rank), end_time_parallel_proc - time_parallel_proc) # All processors log.
+
+
+    minesweeper_logger.debug("I am rank {}".format(rank))
     comm.Barrier()
-    if rank == 0:
-        minesweeper_logger.info("Unclear whats happening...........")
+    minesweeper_logger.debug("I am rank {}".format(rank))
 
     parallel_feasible_solutions = comm.gather(parallel_feasible_solutions, root=0)
-    minesweeper_logger.info("Unclear whats happening")
     if rank == 0:
         minesweeper_logger.info("Finished gathering...")
 
@@ -312,7 +323,9 @@ def solve(board):
         y_index = tile_to_open / length_of_row
         x_index = tile_to_open % length_of_row
 
-        return [x_index, y_index, time_bp_solver, time_partial_bp_solver, time_custom_reduction]
+        return [x_index, y_index]
+    else:
+        return None
 
 #####################################################
 # Creates equations

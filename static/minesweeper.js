@@ -10,10 +10,6 @@ function init() {
 	theTimer = new Timer("timer");
 	theCounter = new Counter("counter");
 	theBoard = new Board();
-
-/*	window.onbeforeunload = function() {
-		return theBoard.game == PLAYING ? "Leaving this page will lose your current progress" : null
-	}*/
 	theControls = new Controls();
 	if (theControls.auto_solve)
 		theControls.request_solve();
