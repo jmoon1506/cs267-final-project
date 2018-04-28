@@ -203,9 +203,12 @@ def solve(board):
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
-    if rank == 0:
-        if is_unopened(board, (0, 0)):
-            return [0, 0]
+    # if rank == 0:
+    if is_unopened(board, (0, 0)):
+        return [0, 0]
+    # else:
+    #     if is_unopened(board, (0, 0)):
+    #         return [0, 0]
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     if rank == 0:
@@ -256,6 +259,9 @@ def solve(board):
     # inside of rank 0 --- 1. its length is more than 2, or its less than 2.
     # IF the length is < 2... i just wanna do serial.
     # If the length > 2 --- then I wanna scatter.
+    # minesweeper_logger.debug("I am rank {}".format(rank))
+    minesweeper_logger.debug("I am rank {}".format(rank))
+    comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
     # if rank == 0:
     minesweeper_logger.debug("Partial feasible solution length is, %s", len(partial_feasible_solution))
@@ -297,32 +303,32 @@ def solve(board):
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
-    parallel_feasible_solutions = comm.gather(parallel_feasible_solutions, root=0)
-    if rank == 0:
-        minesweeper_logger.info("Finished gathering...")
+    parallel_feasible_solutions = comm.allgather(parallel_feasible_solutions)
+    # if rank == 0:
+    minesweeper_logger.info("Finished gathering at rank {}...".format(rank))
 
-    if rank == 0:
-        if len(partial_feasible_solution) <= 2:
-            start_bp_solver = time.time()
-            serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-            end_bp_solver = time.time()
-            minesweeper_logger.info("Had to use serial solver. Took time %s".format(end_bp_solver - start_bp_solver))
-            minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
-            final_feasible_solution = serial_feasible_soln
-        else:
-            final_feasible_solution = parallel_feasible_solutions
-            minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
-
-        probabilities = np.sum(final_feasible_solution, axis=0)
-        # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
-        tile_to_open = pos_var[np.argmin(probabilities)]
-        length_of_row = len(board[0])
-        y_index = tile_to_open / length_of_row
-        x_index = tile_to_open % length_of_row
-
-        return [x_index, y_index]
+    # if rank == 0:
+    if len(partial_feasible_solution) <= 2:
+        start_bp_solver = time.time()
+        serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
+        end_bp_solver = time.time()
+        minesweeper_logger.info("Had to use serial solver. Took time %s".format(end_bp_solver - start_bp_solver))
+        minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
+        final_feasible_solution = serial_feasible_soln
     else:
-        return None
+        final_feasible_solution = parallel_feasible_solutions
+        minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
+
+    probabilities = np.sum(final_feasible_solution, axis=0)
+    # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
+    tile_to_open = pos_var[np.argmin(probabilities)]
+    length_of_row = len(board[0])
+    y_index = tile_to_open / length_of_row
+    x_index = tile_to_open % length_of_row
+
+    return [x_index, y_index]
+    # else:
+        # return [0, 0]
 
 #####################################################
 # Creates equations
