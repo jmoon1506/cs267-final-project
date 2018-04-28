@@ -45,7 +45,7 @@ function set_seed(val) {
 function proc_click(e, newProcType) {
     // e.preventDefault();
     if (procType != newProcType) {
-/*        procType = newProcType;
+        procType = newProcType;
         theControls.auto_solve = false;
         turn = 1;
         if (procType === 'serial' && theChart.data.datasets[0].data.length > 0)
@@ -54,6 +54,6 @@ function proc_click(e, newProcType) {
             theChart.data.datasets[1].data = []
         else if (procType === 'distrib' && theChart.data.datasets[2].data.length > 0)
             theChart.data.datasets[2].data = []
-        theControls.newGameButton(false);*/
+        theControls.newGameButton(false);
     }
 }
