@@ -654,7 +654,7 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 
 @app.route('/')
 def index():
-    options = {'autostart': app.config.get('autostart')}
+    options = {'autostart': app.config.get('autostart'), 'mpi': app.config.get('mpi')}
     return render_template('index.html', options=options)
 
 
@@ -687,10 +687,12 @@ if __name__ == '__main__':
     parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
     parser.add_argument("-p", dest="p", default=10, type=int, help="number of threads")
+    parser.add_argument("--mpi", help="Start with MPI", action="store_true")
     args = parser.parse_args()
     global NUM_THREADS
     NUM_THREADS = args.p
     app.config['autostart'] = args.autostart
+    app.config['mpi'] = args.mpi
 
     if args.deploy:
         app.run(host= '0.0.0.0')

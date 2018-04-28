@@ -10,6 +10,9 @@ function Controls() {
 	this.solve = document.getElementById("solve");
 	this.ctrlElements = this.controlsForm.elements;
 	this.auto_solve = options.autostart;
+	if (options.mpi) {
+		procType = 'distrib';
+	}
 
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();
