@@ -1,6 +1,6 @@
 var paramObj = {
 	b:	new Params( 16, 16, 48 ),
-	i:	new Params( 24, 24, 96 ),
+	i:	new Params( 50, 50, 500 ),
 	a:	new Params( 32, 32, 140 )
 }
 
@@ -10,6 +10,12 @@ function Controls() {
 	this.solve = document.getElementById("solve");
 	this.ctrlElements = this.controlsForm.elements;
 	this.auto_solve = options.autostart;
+	if (options.mpi) {
+		procType = 'distrib';
+		document.getElementById("proc_serial").checked = false;
+		document.getElementById("proc_shared").checked = false;
+		document.getElementById("proc_distrib").checked = true;
+	}
 
 	this.controlsForm.onsubmit = function(e) {
 		e.preventDefault();

@@ -3,7 +3,7 @@ var theCounter;
 var theBoard;
 var theControls;
 var gameId = 1;
-var seed = 7119;
+var seed = 2000;
 var turn = 1;
 var procType = 'serial';
 var computeTimer = document.getElementById('computeTime');
