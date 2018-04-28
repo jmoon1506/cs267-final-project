@@ -12,6 +12,9 @@ function Controls() {
 	this.auto_solve = options.autostart;
 	if (options.mpi) {
 		procType = 'distrib';
+		document.getElementById("proc_serial").checked = false;
+		document.getElementById("proc_shared").checked = false;
+		document.getElementById("proc_distrib").checked = true;
 	}
 
 	this.controlsForm.onsubmit = function(e) {
