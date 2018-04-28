@@ -491,8 +491,7 @@ def solve_distributed(board):
     edge_num_reduced = comm.bcast(edge_num_reduced, root=0)
     new_pos_var = comm.bcast(new_pos_var, root=0)
     pos_var = comm.bcast(pos_var, root=0)
-    if rank == 0:
-        minesweeper_logger.info("Finished broadcast from rank 0...")
+
 
     minesweeper_logger.debug("I am rank {}".format(rank))
     comm.Barrier()
@@ -517,32 +516,29 @@ def solve_distributed(board):
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
-    parallel_feasible_solutions = comm.gather(parallel_feasible_solutions, root=0)
-    if rank == 0:
-        minesweeper_logger.info("Finished gathering...")
+    parallel_feasible_solutions = comm.allgather(parallel_feasible_solutions)
+    minesweeper_logger.info("Finished gathering...")
 
-    if rank == 0:
-        if len(partial_feasible_solution) <= 2:
-            start_bp_solver = time.time()
-            serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-            time_bp_solver = time.time() - start_bp_solver
-            minesweeper_logger.info("Had to use serial solver. Took time %s".format(time_bp_solver))
-            minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
-            final_feasible_solution = serial_feasible_soln
-        else:
-            final_feasible_solution = parallel_feasible_solutions
-            minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
 
-        probabilities = np.sum(final_feasible_solution, axis=0)
-        # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
-        tile_to_open = pos_var[np.argmin(probabilities)]
-        length_of_row = len(board[0])
-        y_index = tile_to_open / length_of_row
-        x_index = tile_to_open % length_of_row
-
-        return [x_index, y_index, 0, 0, 0, 0]
+    if len(partial_feasible_solution) <= 2:
+        start_bp_solver = time.time()
+        serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
+        time_bp_solver = time.time() - start_bp_solver
+        minesweeper_logger.info("Had to use serial solver. Took time %s".format(time_bp_solver))
+        minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
+        final_feasible_solution = serial_feasible_soln
     else:
-        return None
+        final_feasible_solution = parallel_feasible_solutions
+        minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
+
+    probabilities = np.sum(final_feasible_solution, axis=0)
+    # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
+    tile_to_open = pos_var[np.argmin(probabilities)]
+    length_of_row = len(board[0])
+    y_index = tile_to_open / length_of_row
+    x_index = tile_to_open % length_of_row
+
+    return [x_index, y_index, 0, 0, 0, 0]
 
 def prepare(board):
     """
