@@ -16,9 +16,11 @@ np.set_printoptions(threshold=np.nan, linewidth=1000)
 
 logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                     datefmt='%d-%m-%Y:%H:%M:%S',
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
+logging.getLogger("flask").setLevel(logging.WARNING)
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 
 NUM_THREADS = 2
@@ -316,7 +318,7 @@ def solve_step(board, num_proc):
     reduced_u = custom_reduction(u)
     time_custom_reduction = time.time() - start_custom_reduction
     minesweeper_logger.debug("Reduced U matrix of lin. eqns joined matrix is: \n%s", reduced_u)
-    minesweeper_logger.info("Custom reduction took \n%s", time_custom_reduction)
+    minesweeper_logger.debug("Custom reduction took %s", time_custom_reduction)
 
     edge_num_reduced = list(reduced_u[:, -1])
     linear_mat_reduced = reduced_u[:, :-1]
@@ -337,12 +339,12 @@ def solve_step(board, num_proc):
         start_partial_bp_solver = time.time()
         partial_feasible_sol = solve_binary_program(selected_rows, selected_b)
         time_partial_bp_solver = time.time() - start_partial_bp_solver
-        minesweeper_logger.info("Partial feasible sol is \n%s", partial_feasible_sol)
-        minesweeper_logger.info("Partial BP solver took \n%s", time_partial_bp_solver)
+        minesweeper_logger.debug("Partial feasible sol is \n%s", partial_feasible_sol)
+        minesweeper_logger.info("Partial BP solver took %s", time_partial_bp_solver)
 
         # Imagine that we have distributed
         feas_sol = []
-        minesweeper_logger.info("Partial feas sol len \n%s", len(partial_feasible_sol))
+        minesweeper_logger.debug("Partial feas sol len \n%s", len(partial_feasible_sol))
     else:
         partial_feasible_sol = []
 
@@ -368,7 +370,7 @@ def solve_step(board, num_proc):
         serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
         time_bp_solver = time.time() - start_bp_solver
         feas_sol = serial_feasible_soln
-        minesweeper_logger.info("BP Solver took \n%s", time_bp_solver)
+        minesweeper_logger.info("BP Solver took %s", time_bp_solver)
 
     minesweeper_logger.debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
     #minesweeper_logger.debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
@@ -441,7 +443,7 @@ def solve_distributed(board):
         reduced_u = custom_reduction(u)
         time_custom_reduction = time.time() - start_custom_reduction
         minesweeper_logger.debug("Reduced U matrix of lin. eqns joined matrix is: \n%s", reduced_u)
-        minesweeper_logger.info("Custom reduction took \n%s", time_custom_reduction)
+        minesweeper_logger.debug("Custom reduction took %s", time_custom_reduction)
 
         edge_num_reduced = list(reduced_u[:, -1])
         linear_mat_reduced = reduced_u[:, :-1]
@@ -463,9 +465,9 @@ def solve_distributed(board):
         start_partial_bp_solver = time.time()
         partial_feasible_solution = solve_binary_program(selected_rows, selected_b)
         time_partial_bp_solver = time.time() - start_partial_bp_solver
-        minesweeper_logger.info("Partial feasible sol is \n%s", partial_feasible_solution)
-        minesweeper_logger.info("Partial BP solver took \n%s", time_partial_bp_solver)
-        minesweeper_logger.info("Partial feas sol len \n%s", len(partial_feasible_solution))
+        minesweeper_logger.debug("Partial feasible sol is \n%s", partial_feasible_solution)
+        minesweeper_logger.info("Partial BP solver took %s", time_partial_bp_solver)
+        minesweeper_logger.debug("Partial feas sol len \n%s", len(partial_feasible_solution))
 
 
     # partial_feasible_solution. Currently, it's NONE in all ranks except for 0.
@@ -476,13 +478,14 @@ def solve_distributed(board):
     # if rank == 0:
     minesweeper_logger.debug("Partial feasible solution length is, %s", len(partial_feasible_solution))
     # if len(partial_feasible_solution) > 2:
+    orig_partial_feasible_solution = comm.bcast(partial_feasible_solution, root=0)
     to_scatter = set_array_for_scatter(partial_feasible_solution)
     minesweeper_logger.debug("Going to scatter from rank {}".format(rank))
     partial_feasible_solution = comm.scatter(to_scatter, root=0)
     # Broadcast all the data required.
-    minesweeper_logger.info("Scattered partial_feasible_solution, now broadcasting from rank 0...")
+    minesweeper_logger.debug("Scattered partial_feasible_solution, now broadcasting from rank 0...")
     comm.Barrier()
-    minesweeper_logger.info("Finished with barrier?")
+    minesweeper_logger.debug("Finished with barrier?")
     linear_mat_reduced = comm.bcast(linear_mat_reduced, root=0)
     edge_num_reduced = comm.bcast(edge_num_reduced, root=0)
     new_pos_var = comm.bcast(new_pos_var, root=0)
@@ -493,11 +496,14 @@ def solve_distributed(board):
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
-
     parallel_feasible_solutions = [] # All procs initailize this to be entry.
-    print("I am rank {}".format(rank))
-    if partial_feasible_solution != None and len(partial_feasible_solution) > 0: # This means that the root sent me something
+    minesweeper_logger.debug("I am rank {}".format(rank))
+    parallel_time = -float("inf")
+    if partial_feasible_solution != None and len(partial_feasible_solution) > 0 and len(orig_partial_feasible_solution) > 2: # This means that the root sent me something
         for j, sol in enumerate(partial_feasible_solution):
+
+            logging.debug("Proc {} partial_feasible_sol is {}".format(rank, sol))
+
             # All processors go through their list of partial_feasible_solutions
             # set timer
             time_parallel_proc = time.time() # All processors time.
@@ -505,27 +511,40 @@ def solve_distributed(board):
             parallel_feasible_solutions.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints)) # All processors solve.
             end_time_parallel_proc = time.time()
 
-            print("Proc {} took \n%s".format(rank), end_time_parallel_proc - time_parallel_proc) # All processors log.
+            minesweeper_logger.debug("Proc {} took {}".format(rank, end_time_parallel_proc - time_parallel_proc)) # All processors log.
+            if parallel_time == -float("inf"):
+                parallel_time = end_time_parallel_proc - time_parallel_proc
+            else:
+                parallel_time += end_time_parallel_proc - time_parallel_proc
 
-
+    min_parallel_time = comm.allreduce(parallel_time, op=MPI.MAX)
     minesweeper_logger.debug("I am rank {}".format(rank))
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
     parallel_feasible_solutions = comm.allgather(parallel_feasible_solutions)
-    minesweeper_logger.info("Finished gathering...")
+    minesweeper_logger.debug("Finished gathering... at rank {}, and parallel feasible solutions array is {}".format(rank, parallel_feasible_solutions))
 
 
-    if len(partial_feasible_solution) <= 2:
+    # if len(partial_feasible_solution) <= 2:
+
+
+
+    final_feasible_solution = parallel_feasible_solutions
+    minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
+
+    minesweeper_logger.debug("Original partial feasible soln is {}".format(orig_partial_feasible_solution))
+    if len(orig_partial_feasible_solution) <= 2:
+        if rank == 0:
+            minesweeper_logger.info("USING SERIAL SOLVER")
         start_bp_solver = time.time()
         serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
         time_bp_solver = time.time() - start_bp_solver
-        minesweeper_logger.info("Had to use serial solver. Took time %s".format(time_bp_solver))
-        minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
         final_feasible_solution = serial_feasible_soln
-    else:
-        final_feasible_solution = parallel_feasible_solutions
-        minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
+        if rank == 0:
+            minesweeper_logger.info("Serial solver took time {}\n".format(time_bp_solver))
+            minesweeper_logger.debug("Length of serial feasible solution: \n {}".format(serial_feasible_soln))
+
 
     probabilities = np.sum(final_feasible_solution, axis=0)
     # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
@@ -533,6 +552,10 @@ def solve_distributed(board):
     length_of_row = len(board[0])
     y_index = tile_to_open / length_of_row
     x_index = tile_to_open % length_of_row
+    if rank == 0 and min_parallel_time > -float("inf"):
+        minesweeper_logger.info("Parallel took {}\n".format(min_parallel_time))
+
+    # minesweeper_logger.info("Parallel solver took time {}".format(min_parallel_time))
 
     return [x_index, y_index, 0, 0, 0, 0]
 
@@ -653,7 +676,7 @@ def index():
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
     global gameId, clear_grid
-    data = request.get_json()
+    data = request.get_json(force=True, cache=False)
     if (type(data) == list):
         minesweeper_logger.debug("data is {}".format(data))
         return
@@ -696,3 +719,4 @@ if __name__ == '__main__':
         url = "http://127.0.0.1:{0}".format(port)
         threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
         app.run(port=port, debug=False)
+
