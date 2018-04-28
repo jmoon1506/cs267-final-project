@@ -5,7 +5,7 @@ var theControls;
 var gameId = 1;
 var seed = 7119;
 var turn = 1;
-var procType = 'serial';
+var procType = 'distrib';
 var computeTimer = document.getElementById('computeTime');
 var computeTimerObj = null;
 var computeTime = 0;
