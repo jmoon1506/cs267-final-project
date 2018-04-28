@@ -31,7 +31,7 @@ clear_grid = []
 gameId = 0
 clear_grid_distributed = []
 
-board = msboard.MSBoard(10, 20, 23)
+board = msboard.MSBoard(16, 32, 99)
 board.init_board()
 
 def autosolve():
