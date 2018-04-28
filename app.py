@@ -16,7 +16,7 @@ np.set_printoptions(threshold=np.nan, linewidth=1000)
 
 logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                     datefmt='%d-%m-%Y:%H:%M:%S',
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
 
@@ -420,9 +420,8 @@ def solve_distributed(board):
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
-    if rank == 0:
-        if is_unopened(board, (0, 0)):
-            return [0, 0, 0, 0, 0, 0]
+    if is_unopened(board, (0, 0)):
+        return [0, 0, 0, 0, 0, 0]
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     if rank == 0:
@@ -658,6 +657,9 @@ def index():
 def solve_next():
     global gameId, clear_grid
     data = request.get_json()
+    if (type(data) == list):
+        minesweeper_logger.debug("data is {}".format(data))
+        return
     if gameId != data["gameId"]:
         clear_grid = []
     gameId = data["gameId"]
