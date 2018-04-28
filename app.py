@@ -29,6 +29,8 @@ NUM_THREADS = 2
 clear_grid = []
 gameId = 0
 
+clear_grid_distributed = []
+
 #########################################################
 # MPI Configurations
 #########################################################
@@ -410,6 +412,17 @@ def solve_shared(board, num_proc):
     return [next_move[0], next_move[1]] + times
 
 def solve_distributed(board):
+    global clear_grid_distributed
+    times = [0, 0, 0, 0]
+    if len(clear_grid_distributed) == 0:
+        output = solve_step_distributed(board)
+        times = output['times']
+        clear_grid_distributed = output['grids']
+    next_move = clear_grid_distributed[-1]
+    del clear_grid_distributed[-1]
+    return [next_move[0], next_move[1]] + times
+
+def solve_step_distributed(board):
     linear_mat_reduced = None
     edge_num_reduced = None
     new_pos_var = None
@@ -420,14 +433,16 @@ def solve_distributed(board):
     minesweeper_logger.debug("I am rank {}".format(rank))
 
     if is_unopened(board, (0, 0)):
-        return [0, 0, 0, 0, 0, 0]
+        return {'grids': [[0, 0]], 'times': [0, 0, 0, 0]}
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     if rank == 0:
         linear_mat, edge_num, pos_var = prepare(board)
         linear_mat_np = np.matrix(linear_mat)  # Convert to np matrix.
         edge_num_np = np.matrix(edge_num)  # Convert to np matrix.
-
+    time_partial_bp_solver = 0
+    time_custom_reduction = 0
+    time_bp_solver = 0
     if rank == 0:
         minesweeper_logger.debug("Edge num is: \n%s", edge_num_np)
         # Augment the matrix to do LU decomposition.
@@ -435,9 +450,9 @@ def solve_distributed(board):
         minesweeper_logger.debug("Linear equations augmented matrix is: \n%s", linear_matrix_augmented)
         pl, u = linalg.lu(linear_matrix_augmented, permute_l=True)  # Perform LU decomposition. U is gaussian eliminated.
         minesweeper_logger.debug("U matrix of linear equations joined matrix is: \n%s", u)
-        time_custom_reduction = 0
-        time_partial_bp_solver = 0
-        time_bp_solver = 0
+
+
+
 
         start_custom_reduction = time.time()
         reduced_u = custom_reduction(u)
@@ -490,7 +505,8 @@ def solve_distributed(board):
     edge_num_reduced = comm.bcast(edge_num_reduced, root=0)
     new_pos_var = comm.bcast(new_pos_var, root=0)
     pos_var = comm.bcast(pos_var, root=0)
-
+    time_partial_bp_solver = comm.bcast(time_partial_bp_solver, root=0)
+    time_custom_reduction = comm.bcast(time_custom_reduction, root=0)
 
     minesweeper_logger.debug("I am rank {}".format(rank))
     comm.Barrier()
@@ -522,14 +538,14 @@ def solve_distributed(board):
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
-    parallel_feasible_solutions = comm.allgather(parallel_feasible_solutions)
+    parallel_feasible_solutions = comm.allreduce(parallel_feasible_solutions, MPI.SUM)
     minesweeper_logger.debug("Finished gathering... at rank {}, and parallel feasible solutions array is {}".format(rank, parallel_feasible_solutions))
 
 
     # if len(partial_feasible_solution) <= 2:
 
 
-
+    time_solve_step = 0
     final_feasible_solution = parallel_feasible_solutions
     minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
 
@@ -544,20 +560,36 @@ def solve_distributed(board):
         if rank == 0:
             minesweeper_logger.info("Serial solver took time {}\n".format(time_bp_solver))
             minesweeper_logger.debug("Length of serial feasible solution: \n {}".format(serial_feasible_soln))
+        else:
+            time_solve_step = time_bp_solver
 
-
+    minesweeper_logger.debug("Final feasible solution is {}".format(final_feasible_solution))
     probabilities = np.sum(final_feasible_solution, axis=0)
-    # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
-    tile_to_open = pos_var[np.argmin(probabilities)]
-    length_of_row = len(board[0])
-    y_index = tile_to_open / length_of_row
-    x_index = tile_to_open % length_of_row
+    minesweeper_logger.debug("Probabilities is {}".format(probabilities))
+
     if rank == 0 and min_parallel_time > -float("inf"):
         minesweeper_logger.info("Parallel took {}\n".format(min_parallel_time))
+    elif min_parallel_time > -float("inf"):
+        time_solve_step = min_parallel_time
 
-    # minesweeper_logger.info("Parallel solver took time {}".format(min_parallel_time))
+    grids = []
+    for ind, prob in enumerate(list(probabilities)):
+        if prob == 0:
+            tile_to_open = pos_var[ind]
+            length_of_row = len(board[0])
+            y_index = tile_to_open / length_of_row
+            x_index = tile_to_open % length_of_row
+            grids.append([x_index, y_index])
+    if len(grids) == 0:
+        tile_to_open = pos_var[np.argmin(probabilities)]
+        length_of_row = len(board[0])
+        y_index = tile_to_open / length_of_row
+        x_index = tile_to_open % length_of_row
+        grids.append([x_index, y_index])
 
-    return [x_index, y_index, 0, 0, 0, 0]
+
+    return {'grids': grids, 'times': [time_solve_step, 0, time_partial_bp_solver, time_custom_reduction]}
+    # return [x_index, y_index, 0, 0, 0, 0]
 
 def prepare(board):
     """
