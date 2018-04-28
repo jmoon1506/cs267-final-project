@@ -1,12 +1,13 @@
 var paramObj = {
-	b:	new Params( 8, 8, 8 ),
-	i:	new Params( 16, 16, 32 ),
-	a:	new Params( 16, 32, 64 )
+	b:	new Params( 16, 16, 48 ),
+	i:	new Params( 24, 24, 96 ),
+	a:	new Params( 32, 32, 140 )
 }
 
 function Controls() {
 	this.controlsForm = document.getElementById("controls");
 	this.newGame = document.getElementById("newgame");
+	this.solve = document.getElementById("solve");
 	this.ctrlElements = this.controlsForm.elements;
 	this.auto_solve = options.autostart;
 
@@ -19,6 +20,9 @@ function Controls() {
 	this.newGame.onsubmit = function(e) {
 		e.preventDefault();
 		theControls.auto_solve = false;
+		Srand.seed(Date.now());
+		set_seed(Math.floor(Srand.random()*10000))
+		
 		theControls.newGameButton();
 	}
 	
@@ -79,7 +83,18 @@ Controls.prototype = {
 		return theControls.validateNum(theControls.bombform, 0, 9999, "bomberror", soft);
 	},
 	
-	newGameButton: function(e) {
+	newGameButton: function(redrawChart=true) {
+		totalComputeTime = 0;
+		if (redrawChart) {
+			theChart.data.labels = [];
+			theChart.data.datasets[0].data = [];
+			theChart.data.datasets[1].data = [];
+			theChart.data.datasets[2].data = [];
+			theChart.update();
+		}
+		window.clearInterval(computeTimerObj);
+		computeTimerObj = null;
+
 		var els = this.ctrlElements;
 		if (els.level.value == 'c') {
 			this.rows = this.validateNum(theControls.rowform, 1, 99, "rowerror", false);
@@ -121,31 +136,49 @@ Controls.prototype = {
 		}
 		else {
  			theControls.customform.setAttribute("class", "hidecustom" );
-			if ( theBoard.game != PLAYING ) theControls.newGameButton(e);
+			// if ( theBoard.game != PLAYING ) theControls.newGameButton();
+			theControls.auto_solve = false;
+			theControls.newGameButton();
 		}
 	},
 
 	request_solve: function() {
+		// console.log("send " + gameId);
+		computeTimer.innerHTML = 0;
+		computeTime = 0;
+		computeTimerObj = window.setInterval(function() {
+			computeTime += 0.01;
+			if (Date.now() % 8 === 0)
+				computeTimer.innerHTML = computeTime.toFixed(2);
+		}, 10);
 		$.ajax({
 			type: 'POST',
 			url: '/api/solve_next',
 			dataType: 'json',
 			contentType: 'application/json; charset=utf-8',
-			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId}),
+			data: JSON.stringify({"board":theBoard.getTileArray(),"gameId":gameId,"procType":procType}),
 			success: function(callback) {
-				// console.log(callback);
-				if (callback[5] != gameId || theBoard.game == OVER) return;
-				theChart.data.labels.push(turn++);
-				var elems = theChart.data.labels.length;
+				window.clearInterval(computeTimerObj);
+				computeTimerObj = null;
+				if (callback[7] != gameId || theBoard.game == OVER) return;
+				if (turn > theChart.data.labels.length)
+					theChart.data.labels.push(turn);
+				turn++;
+				
+				totalComputeTime += computeTime;
+/*				var elems = theChart.data.labels.length;
 				if (elems > 10) {
 					for (var i = 0; i < elems; i++) {
 						if (i % 5 != 4 && i != 0)
 							theChart.data.labels[i] = '';
 					}
-				}
-				theChart.data.datasets[0].data.push(callback[2]);
-				theChart.data.datasets[1].data.push(callback[3]);
-				theChart.data.datasets[2].data.push(callback[4]);
+				}*/
+				if (callback[6] == 0)
+					theChart.data.datasets[0].data.push(computeTime);
+				else if (callback[6] == 1)
+					theChart.data.datasets[1].data.push(computeTime);
+				else
+					theChart.data.datasets[2].data.push(computeTime);
 				theChart.update();
 				theBoard.uncoverTile(callback);
 				if (theControls.auto_solve === true) {
@@ -153,6 +186,8 @@ Controls.prototype = {
 				}
 			},
 			error: function(error) {
+				window.clearInterval(computeTimerObj);
+				computeTimerObj = null;
 				console.log(error);
 			}
 		});

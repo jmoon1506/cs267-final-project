@@ -7,6 +7,7 @@ TODO
 <!doctype html>
 <html>
 	<head>
+		<link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro' rel='stylesheet' type='text/css'>
 		<!-- <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"> -->
 		<script type="text/javascript" src="jquery.min.js"></script>
 		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
@@ -17,12 +18,16 @@ TODO
 		</script>
 	</head>
 	<head>
-		<title>minesweeper-js</title>
+		<title>Parallel Minesweeper</title>
 		<meta charset="utf-8">
 		<link rel="stylesheet" type="text/css" href="minesweeper.css">
 		<link rel="stylesheet" type="text/css" href="controls.css">
 	</head>
 	<body>
+		<h1>Parallel Algorithm for Minesweeper</h1>
+		<h3>Berkeley CS267 - Spring 2018</h3>
+		<h3>Mudit Gupta, Joseph Moon, Qingyang Zhao</h3>
+		<br/>
 		<table class="columns">
 		<tr>
 			<td id="board">
@@ -38,16 +43,40 @@ TODO
 				</table>
 			</td>
 			<td>
-				<canvas id="perf" width="300px" height="300px"></canvas>
+				<!-- <canvas id="perf" width="300px" height="300px" onmouseover="hover_perf(event)" onmouseout="unhover_perf(event)"></canvas> -->
+				<canvas id="perf" width="300px" height="300px""></canvas>
 			</td>
 		</tr>
 		<tr>
 			<td valign="top" align="center">
-				<p>
-					<form id="newgame"><input type="submit" name="newgame" class="button" value="New Game" /></form>&nbsp;&nbsp;
-					<form id="solve_next"><input type="submit" name="solve_next" class="button" value="Solve" /></form>&nbsp;&nbsp;
-					<form id="solve_auto"><input type="submit" name="solve_auto" class="button" value="Stop auto-solve" /></form>
-				</p>
+				<table cellpadding="0px">
+					<tr>
+						<td><form id="newgame"><input type="submit" name="newgame" class="button" value="New Game" /></form></td>
+						<td><form id="solve_next"><input type="submit" name="solve_next" class="button" value="Solve" /></form></td>
+						<td><form id="solve_auto"><input type="submit" name="solve_auto" class="button" value="Stop auto-solve" /></form></td>
+					</tr>
+					<tr>
+						<td colspan="3">Compute time: <span id="computeTime"'>0</span></td>
+					</tr>
+					<tr style="padding-bottom: 4px;"">
+						<td colspan="3">Random seed: <span id="seed" class="seed" onclick='seed_click(event)'></span></td>
+					</tr>
+					<tr id="newseed" style="visibility: hidden;">
+						<form id="newseed_form">
+							<td colspan="3"><span style="visibility: hidden;">Random seed: </span><input type="text" id="newseed_input" value="" maxlength=6 style="width: 50px;"/>&nbsp;&nbsp;<input type="submit" id="newseed_submit" value="Apply"/></td>
+						</form>
+					</tr>
+					<tr><td colspan="3">
+						<fieldset id="proc">
+						<legend>Parallelism</legend>
+						<form id="proc_form">
+						<label><input type="radio" name="proc" onclick="proc_click(event, 'serial')" checked="checked" />None (serial)</label><br />
+						<label><input type="radio" name="proc" onclick="proc_click(event, 'shared')"  />Shared memory</label><br />
+						<label><input type="radio" name="proc" onclick="proc_click(event, 'distrib')" />Distributed memory</label><br />
+						</form>
+						</fieldset>
+					</td></tr>
+				</table>
 			</td>
 			<td id="leftcolumn">
 				<form id="controls">
@@ -55,9 +84,9 @@ TODO
 						<legend>Board size</legend>
 						<table><tr>
 							<td valign="top">
-								<label><input type="radio" name="level" value="b" />8x8</label><br />
-								<label><input type="radio" name="level" value="i" checked="checked" />16x16</label><br />
-								<label><input type="radio" name="level" value="a" />16x32</label><br />
+								<label><input type="radio" name="level" value="b" />16x16</label><br />
+								<label><input type="radio" name="level" value="i" checked="checked" />24x24</label><br />
+								<label><input type="radio" name="level" value="a" />32x32</label><br />
 								<label><input type="radio" name="level" value="c" />Custom</label><br />
 							</td>
 							<td padding="0px">
@@ -79,9 +108,9 @@ TODO
 					<br/>
 					<fieldset id="tilesize">
 						<legend>Tile size</legend>
-						<label><input type="radio" name="tsize" value="s" />Small (16 pixels)</label><br />
-						<label><input type="radio" name="tsize" value="m" checked="checked" />Medium (24 pixels)</label><br />
-						<label><input type="radio" name="tsize" value="l" />Large (32 pixels)</label><br />
+						<label><input type="radio" name="tsize" value="s" />Small (8 pixels)</label><br />
+						<label><input type="radio" name="tsize" value="m" checked="checked" />Medium (16 pixels)</label><br />
+						<label><input type="radio" name="tsize" value="l" />Large (24 pixels)</label><br />
 					</fieldset>
 				</form>
 			</td>
@@ -92,11 +121,11 @@ TODO
 		<script>
 			var options = JSON.parse('{{ options | tojson | safe }}');
 		</script>
+		<script type="text/javascript" src="jsrand.min.js"></script>
 		<script type="text/javascript" src="Chart.min.js"></script>
 		<script type="text/javascript" src="solve.js"></script>
 		<script type="text/javascript" src="minesweeper.js"></script>
 		<script type="text/javascript" src="controls.js"></script>
 		<script type="text/javascript" src="info.js"></script>
-
 	</body>
 </html>

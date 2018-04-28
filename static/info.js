@@ -1,29 +1,27 @@
-var turn = 1;
-
 var theChart = new Chart(document.getElementById("perf"), {
-  type: 'bar',
+  type: 'line',
   data: {
     labels: [],
     datasets: [
       { 
         data: [],
-        label: "Complete BP",
+        label: "Serial",
+        borderColor: "#75B9BE",
         backgroundColor: "#75B9BE",
-        borderColor: "#3e95cd",
         fill: false
       },
       { 
         data: [],
-        label: "Partial BP",
+        label: "Shared memory",
+        borderColor: "#EE7674",
         backgroundColor: "#EE7674",
-        borderColor: "#3e95cd",
         fill: false
       },
       { 
         data: [],
-        label: "Reduction",
+        label: "Distributed memory",
+        borderColor: "#A6B1E1",
         backgroundColor: "#A6B1E1",
-        borderColor: "#3e95cd",
         fill: false
       },
     ]
@@ -51,15 +49,17 @@ var theChart = new Chart(document.getElementById("perf"), {
           return "Turn " + (tooltipItem[0].index+1);
         },
         label: function(tooltipItem) {
-          return Number(tooltipItem.yLabel).toFixed(4) + " seconds";
+          return Number(tooltipItem.yLabel).toFixed(2) + " seconds";
         }
       }
     },
     scales: {
       xAxes: [{
-        stacked: true,
+        // stacked: true,
         ticks: {
           beginAtZero: true,
+          autoSkip: true,
+          autoSkipPadding: 20,
         },
         scaleLabel: {
           display: true,
@@ -67,7 +67,7 @@ var theChart = new Chart(document.getElementById("perf"), {
         }
       }],
       yAxes: [{
-        stacked: true,
+        // stacked: true,
         ticks: {
           beginAtZero: true,
         },
@@ -79,3 +79,11 @@ var theChart = new Chart(document.getElementById("perf"), {
     }
   }
 });
+
+function hover_perf(e) {
+  theChart.options.tooltips.enabled = true;
+};
+
+function unhover_perf(e) {
+  theChart.options.tooltips.enabled = false;
+};

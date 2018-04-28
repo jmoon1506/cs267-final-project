@@ -5,18 +5,27 @@ from scipy import linalg
 from pulp import *
 import time
 import logging
+
+import thread
+
+import time
+
 from mpi4py import MPI
 
-#############################################
-# Logging Configurations
-############################################
 np.set_printoptions(threshold=np.nan, linewidth=1000)
 
 logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                     datefmt='%d-%m-%Y:%H:%M:%S',
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 minesweeper_logger = logging.getLogger("minesweeper_logger")
 logging.getLogger("pulp").setLevel(logging.WARNING)
+
+
+NUM_THREADS = 2
+
+# GLOBALS
+clear_grid = []
+gameId = 0
 
 #########################################################
 # MPI Configurations
@@ -24,9 +33,40 @@ logging.getLogger("pulp").setLevel(logging.WARNING)
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
-#################################################
-# Parallelization Methods
-##################################################
+class myThread (threading.Thread):
+   def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
+      threading.Thread.__init__(self)
+      self.threadID = threadID
+      self.name = name
+      self.counter = counter
+      self.linear_mat_reduced = linear_mat_reduced
+      self.edge_num_reduced = edge_num_reduced
+      self.partial_feasible_sol = partial_feasible_sol
+      self.pos_var = pos_var
+      self.new_pos_var = new_pos_var
+
+   def run(self):
+      # Get lock to synchronize threads
+      threadLock = threading.Lock()
+      threadLock.acquire()
+      time_parallel_proc = time.time()
+      self.feas_sol = parallel_solving(self.linear_mat_reduced, self.edge_num_reduced, self.partial_feasible_sol, self.pos_var, self.new_pos_var, self.threadID)
+      end_time_parallel_proc = time.time()
+      minesweeper_logger.info("Proc {} took \n%s".format(self.threadID), end_time_parallel_proc - time_parallel_proc)
+      # Free lock to release next thread
+      threadLock.release()
+
+   def get_value(self):
+      return self.feas_sol
+
+def parallel_solving(linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var, threadID):
+    feas_sol = []
+    for j, sol in enumerate(partial_feasible_sol):
+        if j % NUM_THREADS == threadID:
+            constraints = [(pos_var.index(new_pos_var[i]), sol[i]) for i in range(len(sol))]
+            feas_sol.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints))
+    return feas_sol
+
 def choose_rows(U, b, num_threads):
     """ 
     Chooses the first set of variables to find feasible solutions for. 
@@ -59,11 +99,49 @@ def choose_rows(U, b, num_threads):
             selected_b.append(b[i])
     np.delete(U, delete_rows, axis=0)
     minesweeper_logger.debug("Possible rows \n%s", possible_rows)
-    return np.array(possible_rows[:num_threads]), selected_b[:num_threads]  # Return all the rows.
+    if len(possible_rows) >= num_threads:
+        return np.array(possible_rows[-1-num_threads:-1]), selected_b[-1-num_threads:-1]  # Return all the rows.
+    else:
+        return np.array(possible_rows[:]), selected_b[:]
 
-#################################################
-# Serial code optimization
-################################################
+def choose_clear_grids(u):
+    clear_grids_index = []
+    solved_rows = []  # Rows that are uniquely solved.
+
+    for i in range(len(u)):  # Iterate through the rows of u
+        row = u[i]  # Get the row
+        unique, counts = np.unique(row, return_counts=True)
+        counts_map = dict(zip(unique, counts))
+
+        if 1.0 not in counts_map:
+            counts_map[1.0] = 0
+        if -1.0 not in counts_map:
+            counts_map[-1.0] = 0
+        if 0.0 not in counts_map:
+            counts_map[0.0] = 0
+
+        if counts_map[1.0] > 0:
+            if counts_map[1.0] == 2 and row[-1] == 1:  # If there is a single 1 and a 1 at the end.
+                # Then reduce with row
+                solved_rows.append(i)  # This row is fully solved.
+                u = reduce_row(u, row, i, solved_rows)
+            elif counts_map[1.0] + counts_map[-1.0] == 1 and row[-1] == 0:  # If there is a single 1 and a 0 at the end.
+                solved_rows.append(i)  # This row is fully solved
+                clear_grids_index.append(i)
+                u = reduce_row(u, row, i, solved_rows)
+
+        if counts_map[-1.0] > 0:
+            if counts_map[-1.0] == 1 and row[-1] == 1:
+                solved_rows.append(i)
+                u = reduce_row(u, row, i, solved_rows, minus_one=True)
+            elif counts_map[1.0] + counts_map[-1.0] == 1 and row[-1] == 0:
+                solved_rows.append(i)
+                clear_grids_index.append(i)
+                u = reduce_row(u, row, i, solved_rows, minus_one=True)
+        else:
+            pass
+    return clear_grids_index
+
 def custom_reduction(u):
     """
     Custom reduction function for the LU decomposed matrix 'u'. 
@@ -190,10 +268,149 @@ def set_array_for_scatter(arr):
 
     return new_arr
 
-####################################################
-# Central method. Selects which tile to open
-#################################################
-def solve(board):
+
+def solve_step(board):
+    time_solve_step = 0
+    time_custom_reduction = 0
+    time_partial_bp_solver = 0
+    time_bp_solver = 0
+
+    start_solve_step = time.time()
+
+    if is_unopened(board, (0, 0)):
+        return {'grids':[[0, 0]], 'times':[0, 0, 0, 0]}
+
+    # Prepare the board by getting the linear equations and a mapping of variable to tiles.
+    linear_mat, edge_num, pos_var = prepare(board)
+    linear_mat_np = np.matrix(linear_mat)  # Convert to np matrix.
+    edge_num_np = np.matrix(edge_num)  # Convert to np matrix.
+
+    minesweeper_logger.debug("Edge num is: \n%s", edge_num_np)
+    # Augment the matrix to do LU decomposition.
+    linear_matrix_augmented = np.hstack((linear_mat_np, np.array(edge_num_np).T))
+
+    minesweeper_logger.debug("Linear equations augmented matrix is: \n%s", linear_matrix_augmented)
+    pl, u = linalg.lu(linear_matrix_augmented, permute_l=True)  # Perform LU decomposition. U is gaussian eliminated.
+
+    minesweeper_logger.debug("U matrix of linear equations joined matrix is: \n%s", u)
+
+    clear_grid_index = choose_clear_grids(u)
+    if len(clear_grid_index) > 0:
+        print "I am sure"
+        clear_grid_early = []
+        for i in range(len(clear_grid_index)):
+            tile_to_open = pos_var[clear_grid_index[i]]
+            length_of_row = len(board[0])
+            y_index = tile_to_open / length_of_row
+            x_index = tile_to_open % length_of_row
+            clear_grid_early.append([x_index, y_index])
+        # return clear_grid_early
+        time_solve_step = time.time() - start_solve_step
+        return {'grids':clear_grid_early, 'times':[time_solve_step, 0, 0, 0]}
+    else:
+        print "I am guessing"
+
+    
+
+    start_custom_reduction = time.time()
+    reduced_u = custom_reduction(u)
+    time_custom_reduction = time.time() - start_custom_reduction
+    minesweeper_logger.debug("Reduced U matrix of lin. eqns joined matrix is: \n%s", reduced_u)
+    minesweeper_logger.info("Custom reduction took \n%s", time_custom_reduction)
+
+    edge_num_reduced = list(reduced_u[:, -1])
+    linear_mat_reduced = reduced_u[:, :-1]
+
+
+    # Select rows that we want to solve as a subproblem in the serial part.
+    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = NUM_THREADS/4)
+    selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
+
+    minesweeper_logger.debug("Selected rows \n%s", selected_rows)
+    minesweeper_logger.debug("New b \n%s", selected_b)
+    minesweeper_logger.debug("New pos var \n%s", new_pos_var)
+
+    # First bin_programming solve subproblem
+    if len(selected_b) != 0:
+        minesweeper_logger.debug("selected rows \n%s", selected_rows)
+        minesweeper_logger.debug("selected b \n%s", selected_b)
+        start_partial_bp_solver = time.time()
+        partial_feasible_sol = solve_binary_program(selected_rows, selected_b)
+        time_partial_bp_solver = time.time() - start_partial_bp_solver
+        minesweeper_logger.info("Partial feasible sol is \n%s", partial_feasible_sol)
+        minesweeper_logger.info("Partial BP solver took \n%s", time_partial_bp_solver)
+
+        # Imagine that we have distributed
+        feas_sol = []
+        minesweeper_logger.info("Partial feas sol len \n%s", len(partial_feasible_sol))
+    else:
+        partial_feasible_sol = []
+
+    if len(partial_feasible_sol) > 1:
+
+        threads = []
+        # Create new threads
+        for i in range(NUM_THREADS):
+            threads.append(myThread(i, "Thread"+str(i), i, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var))
+
+        # Start new Threads
+        for i in range(NUM_THREADS):
+            threads[i].start()
+
+        # Wait for all threads to complete
+        for t in threads:
+            t.join()
+        for i in range(NUM_THREADS):
+            feas_sol += threads[i].get_value()
+
+    if len(partial_feasible_sol) <= 1:
+        start_bp_solver = time.time()
+        serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
+        time_bp_solver = time.time() - start_bp_solver
+        feas_sol = serial_feasible_soln
+        minesweeper_logger.info("BP Solver took \n%s", time_bp_solver)
+
+    minesweeper_logger.debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
+    #minesweeper_logger.debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
+
+    probabilities = np.sum(feas_sol, axis=0)
+
+    grids = []
+    for ind, prob in enumerate(list(probabilities)):
+        if prob == 0:
+            tile_to_open = pos_var[ind]
+            length_of_row = len(board[0])
+            y_index = tile_to_open / length_of_row
+            x_index = tile_to_open % length_of_row
+            grids.append([x_index, y_index])
+    if len(grids) == 0:
+        tile_to_open = pos_var[np.argmin(probabilities)]
+        length_of_row = len(board[0])
+        y_index = tile_to_open / length_of_row
+        x_index = tile_to_open % length_of_row
+        grids.append([x_index, y_index])
+
+    time_solve_step = time.time() - start_solve_step
+    return {'grids':grids, 'times':[time_solve_step, time_bp_solver, time_partial_bp_solver, time_custom_reduction]}
+
+
+def solve_serial(board):
+    global clear_grid
+    times = [0, 0, 0, 0]
+    if len(clear_grid) == 0:
+        output = solve_step(board)
+        # print(output)
+        times = output['times']
+        clear_grid = output['grids']
+    next_move = clear_grid[-1]
+    # print(next_move)
+    del clear_grid[-1]
+    return [next_move[0], next_move[1]] + times
+
+def solve_shared(board):
+    return solve_serial(board)
+
+def solve_distributed(board):
     linear_mat_reduced = None
     edge_num_reduced = None
     new_pos_var = None
@@ -203,12 +420,9 @@ def solve(board):
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
-    # if rank == 0:
-    if is_unopened(board, (0, 0)):
-        return [0, 0]
-    # else:
-    #     if is_unopened(board, (0, 0)):
-    #         return [0, 0]
+    if rank == 0:
+        if is_unopened(board, (0, 0)):
+            return [0, 0, 0, 0, 0, 0]
 
     # Prepare the board by getting the linear equations and a mapping of variable to tiles.
     if rank == 0:
@@ -262,9 +476,6 @@ def solve(board):
     # inside of rank 0 --- 1. its length is more than 2, or its less than 2.
     # IF the length is < 2... i just wanna do serial.
     # If the length > 2 --- then I wanna scatter.
-    # minesweeper_logger.debug("I am rank {}".format(rank))
-    minesweeper_logger.debug("I am rank {}".format(rank))
-    comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
     # if rank == 0:
     minesweeper_logger.debug("Partial feasible solution length is, %s", len(partial_feasible_solution))
@@ -306,36 +517,33 @@ def solve(board):
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
 
-    parallel_feasible_solutions = comm.allgather(parallel_feasible_solutions)
-    # if rank == 0:
-    minesweeper_logger.info("Finished gathering at rank {}...".format(rank))
+    parallel_feasible_solutions = comm.gather(parallel_feasible_solutions, root=0)
+    if rank == 0:
+        minesweeper_logger.info("Finished gathering...")
 
-    # if rank == 0:
-    if len(partial_feasible_solution) <= 2:
-        start_bp_solver = time.time()
-        serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-        end_bp_solver = time.time()
-        minesweeper_logger.info("Had to use serial solver. Took time %s".format(end_bp_solver - start_bp_solver))
-        minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
-        final_feasible_solution = serial_feasible_soln
+    if rank == 0:
+        if len(partial_feasible_solution) <= 2:
+            start_bp_solver = time.time()
+            serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
+            time_bp_solver = time.time() - start_bp_solver
+            minesweeper_logger.info("Had to use serial solver. Took time %s".format(time_bp_solver))
+            minesweeper_logger.debug("Length of serial feasible solution: \n%s", serial_feasible_soln)
+            final_feasible_solution = serial_feasible_soln
+        else:
+            final_feasible_solution = parallel_feasible_solutions
+            minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
+
+        probabilities = np.sum(final_feasible_solution, axis=0)
+        # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
+        tile_to_open = pos_var[np.argmin(probabilities)]
+        length_of_row = len(board[0])
+        y_index = tile_to_open / length_of_row
+        x_index = tile_to_open % length_of_row
+
+        return [x_index, y_index, 0, 0, 0, 0]
     else:
-        final_feasible_solution = parallel_feasible_solutions
-        minesweeper_logger.debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
+        return None
 
-    probabilities = np.sum(final_feasible_solution, axis=0)
-    # TODO: Make a 2d matrix out of probabilities so that we can display it on the grid.
-    tile_to_open = pos_var[np.argmin(probabilities)]
-    length_of_row = len(board[0])
-    y_index = tile_to_open / length_of_row
-    x_index = tile_to_open % length_of_row
-
-    return [x_index, y_index]
-    # else:
-        # return [0, 0]
-
-#####################################################
-# Creates equations
-#######################################################
 def prepare(board):
     """
     :param board: 
@@ -376,9 +584,7 @@ def prepare(board):
     edge_num = np.array(edge_num)
     return linear_mat, edge_num, pos_var
 
-#######################################################
-# Binary program solver
-#######################################################
+
 def solve_binary_program(linear_mat, edge_num, constraints=[]):
     """
     Solves the given binary program, and returns ALL feasible solutions. 
@@ -454,8 +660,24 @@ def index():
 
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
+    global gameId, clear_grid
     data = request.get_json()
-    solution = solve(data["board"])
+    if gameId != data["gameId"]:
+        clear_grid = []
+    gameId = data["gameId"]
+    solution = []
+    if data["procType"] == "serial":
+        solution = solve_serial(data["board"])
+        solution.append(0)
+    elif data["procType"] == "shared":
+        solution = solve_shared(data["board"])
+        solution.append(1)
+    elif data["procType"] == "distrib":
+        solution = solve_distributed(data["board"])
+        solution.append(2)
+    else:
+        print("invalid procType")
+        return
     solution.append(data["gameId"])
     return jsonify(solution)
 
@@ -464,7 +686,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
+    parser.add_argument("-p", dest="p", default=10, type=int, help="number of threads")
     args = parser.parse_args()
+    global NUM_THREADS
+    NUM_THREADS = args.p
     app.config['autostart'] = args.autostart
 
     if args.deploy:

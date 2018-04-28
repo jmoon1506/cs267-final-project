@@ -2,7 +2,14 @@ var theTimer;
 var theCounter;
 var theBoard;
 var theControls;
-var gameId = 0;
+var gameId = 1;
+var seed = 7119;
+var turn = 1;
+var procType = 'serial';
+var computeTimer = document.getElementById('computeTime');
+var computeTimerObj = null;
+var computeTime = 0;
+var totalComputeTime = 0;
 
 onload = init;
 
@@ -10,6 +17,9 @@ function init() {
 	theTimer = new Timer("timer");
 	theCounter = new Counter("counter");
 	theBoard = new Board();
+
+	set_seed(seed);
+
 	theControls = new Controls();
 	if (theControls.auto_solve)
 		theControls.request_solve();
@@ -37,6 +47,8 @@ function Board() {
 	}
 
 	this.newGame = function() {
+		gameId++;
+		Srand.seed(seed);
 		this.game = WAITING;
 		this.allTiles( function(t) { t.reset() } );
 		theBoard.setBombs( this.num.bombs );
@@ -46,10 +58,6 @@ function Board() {
 		document.getElementById("solve_auto").firstChild.disabled = false;
 		document.getElementById("solve_next").firstChild.disabled = false;
 		turn = 1;
-		theChart.data.labels = [];
-		theChart.data.datasets[0].data = [];
-		theChart.update();
-		gameId++;
 	}
 	
 	this.endGame = function(win) {
@@ -59,6 +67,9 @@ function Board() {
 		document.getElementById("solve_auto").firstChild.disabled = true;
 		document.getElementById("solve_next").firstChild.disabled = true;
 		theControls.auto_solve = false;
+		computeTimer.innerHTML = totalComputeTime.toFixed(2) + " total";
+		window.clearInterval(computeTimerObj);
+		computeTimerObj = null;
 	}
 	
 	this.makeBoard = function(p, t) {
@@ -96,7 +107,7 @@ function Board() {
 		this.nonBombs = n - k;
 		while ( n > 0 ) {
 			n--;
-			if ( Math.random() < k/n ) {	//prob of bomb should be k/n, never true if k=0, always true if k=n
+			if ( Srand.random() < k/n ) {	//prob of bomb should be k/n, never true if k=0, always true if k=n
 				var j = n % this.num.cols;
 				var i = Math.floor(n / this.num.cols);
 				this.board[i][j].bomb = true;
