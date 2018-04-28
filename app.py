@@ -5,6 +5,7 @@ from scipy import linalg
 from pulp import *
 import time
 import logging
+import msboard
 
 import thread
 
@@ -28,85 +29,40 @@ NUM_THREADS = 2
 # GLOBALS
 clear_grid = []
 gameId = 0
-
 clear_grid_distributed = []
 
-#########################################################
-# MPI Configurations
-#########################################################
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
+board = msboard.MSBoard(10, 20, 23)
+board.init_board()
 
-class myThread (threading.Thread):
-   def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
-      threading.Thread.__init__(self)
-      self.threadID = threadID
-      self.name = name
-      self.counter = counter
-      self.linear_mat_reduced = linear_mat_reduced
-      self.edge_num_reduced = edge_num_reduced
-      self.partial_feasible_sol = partial_feasible_sol
-      self.pos_var = pos_var
-      self.new_pos_var = new_pos_var
+def autosolve():
+    my_board = np.zeros((board.board_height, board.board_width))
+    print(len(my_board))
+    print(len(my_board[0]))
 
-   def run(self):
-      # Get lock to synchronize threads
-      threadLock = threading.Lock()
-      threadLock.acquire()
-      time_parallel_proc = time.time()
-      self.feas_sol = parallel_solving(self.linear_mat_reduced, self.edge_num_reduced, self.partial_feasible_sol, self.pos_var, self.new_pos_var, self.threadID)
-      end_time_parallel_proc = time.time()
-      minesweeper_logger.info("Proc {} took \n%s".format(self.threadID), end_time_parallel_proc - time_parallel_proc)
-      # Free lock to release next thread
-      threadLock.release()
+    for i in range(len(board.info_map)):
+        for j in range(len(board.info_map[0])):
+            my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
-   def get_value(self):
-      return self.feas_sol
+    while board.check_board() == 2:
+        return_dict = solve_step_distributed(my_board)
+        tile = return_dict['grids'][0]
+        board.click_field(tile[0], tile[1])
+        my_board = np.zeros((board.board_height, board.board_width))
+        for i in range(len(board.info_map)):
+            for j in range(len(board.info_map[0])):
+                my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
+        board.print_board()
 
-def parallel_solving(linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var, threadID):
-    feas_sol = []
-    for j, sol in enumerate(partial_feasible_sol):
-        if j % NUM_THREADS == threadID:
-            constraints = [(pos_var.index(new_pos_var[i]), sol[i]) for i in range(len(sol))]
-            feas_sol.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints))
-    return feas_sol
 
-def choose_rows(U, b, num_threads):
-    """ 
-    Chooses the first set of variables to find feasible solutions for. 
-    U: numpy matrix from LU decomposition of the binary equation matrix.
-    num_threads: number of threads for which we select the matrix.
-    pos_var: Maps variables to true position on board.
-    """
-    possible_rows = []
-    delete_rows = []
-    selected_b = []
 
-    for i in range(len(U)):
-        row = U[i]
-        unique, counts = np.unique(row, return_counts=True)
-        counts_map = dict(zip(unique, counts))
 
-        if 1.0 not in counts_map:
-            counts_map[1.0] = 0
-        if -1.0 not in counts_map:
-            counts_map[-1.0] = 0
-        if 0.0 not in counts_map:
-            counts_map[0.0] = 0
-
-        if counts_map[1.0] + counts_map[-1.0] == 1:
-            continue  # We don't want to pick this row
-        elif counts_map[0.0] == len(U[0]):
-            delete_rows.append(i)
-        else:
-            possible_rows.append(row)
-            selected_b.append(b[i])
-    np.delete(U, delete_rows, axis=0)
-    minesweeper_logger.debug("Possible rows \n%s", possible_rows)
-    if len(possible_rows) >= num_threads:
-        return np.array(possible_rows[-1-num_threads:-1]), selected_b[-1-num_threads:-1]  # Return all the rows.
-    else:
-        return np.array(possible_rows[:]), selected_b[:]
+#######################################
+### COMMON METHODS ####################
+######################################
+def is_unopened(board, index):
+    """Takes in a tuple 'index', and board.
+    Returns true if tile is unopened"""
+    return board[index[0]][index[1]] == -1
 
 def choose_clear_grids(u):
     clear_grids_index = []
@@ -146,6 +102,108 @@ def choose_clear_grids(u):
             pass
     return clear_grids_index
 
+def is_opened(board, index):
+    return not is_unopened(board, index)
+
+def prepare(board):
+    """
+    :param board: 
+    :return: 
+        :linear_mat: Linear equation matrix, to be further processed and solved using
+        the *binary* equation solver. This matrix is NOT augmented, and only contains the equations.
+        :edge_num: This is the value vector (array) corresponding to linear_equation matrix. Used in
+        creating the augmented matrix. This value will always be the value of the opened tiles. 
+        :pos_var: A customized mapping from variable numbers (i.e. columns of linear_mat) to the actual
+        tile indices on the board. For instance, variable x_3 might correspond to the 26th tile on the board.
+    """
+    num_cols = len(board[0])
+    num_rows = len(board)
+    pos_var = []
+    edge_num = []
+    idx_mat = []
+    for i, j in itertools.product(range(num_cols), range(num_rows)):
+        if board[j][i] > 0:
+            var_idx = []
+            for offset_x, offset_y in itertools.product([-1, 0, 1], [-1, 0, 1]):
+                neighbor_x = i + offset_x
+                neighbor_y = j + offset_y
+                if neighbor_x >= 0 and neighbor_y >= 0 and neighbor_x < num_cols and neighbor_y < num_rows and \
+                                board[neighbor_y][neighbor_x] == -1:
+                    cur_neighbor_idx = neighbor_y * num_cols + neighbor_x
+                    var_idx.append(cur_neighbor_idx)
+                    if cur_neighbor_idx not in pos_var:
+                        pos_var.append(cur_neighbor_idx)
+            if len(var_idx) > 0:
+                cur_number_idx = j * num_cols + i
+                edge_num.append(board[cur_number_idx / num_cols][cur_number_idx % num_cols])
+                idx_mat.append([pos_var.index(idx) for idx in var_idx])
+
+    linear_mat = np.zeros((len(edge_num), len(pos_var)), dtype=np.int8)
+    for i in range(len(edge_num)):
+        for j in idx_mat[i]:
+            linear_mat[i][j] = 1
+    edge_num = np.array(edge_num)
+    return linear_mat, edge_num, pos_var
+
+def solve_binary_program(linear_mat, edge_num, constraints=[]):
+    """
+    Solves the given binary program, and returns ALL feasible solutions. 
+    The PULP solver used as a subroutine does not actually have a facility to return
+    the set of all feasible solutions. This method does so using a while(True) loop.
+    One the PULP solver returns a set of solutions, the binary program is restricted
+    to add another constraint that prevents those variables from taking those exact values. 
+    For instance, suppose that the pulp solver returns the values
+    S_1 = (x_1 = 1, x_2 = 1, x_3 = 0, x_4 = 1). A new constraint is added that restricts
+    x_1 + x_2 + x_4 from being 3 again. The nature of minesweeper is such that
+    S_2 = (x_1 = 1, x_2 = 1, x_3 = 1, x_4 = 1) will not be a feasible solution if S_1 is
+     a feasible solution. 
+    :param linear_mat: Binary equation matrix. Non-augmented. In an equation Ax = b, the A matrix.
+    :param edge_num: Value vector. In Ax = b, the b vector. 
+    :param constraints: Optional, additional constraints imposed on the solver. 
+    These additional constraints are the heart of the parallelization. This binary_program is
+     first used to find a subset of the feasible solutions. Then, suppose that the variables we
+     gather solutions for are (x_1, x_2, x_3), and we get 6 possible solutions. These are scattered to 
+     6 different processors, and each one solves binary_programs with additional constraints constraining
+     x_1, x_2, x_3 to be the values that are assigned to said processor. 
+
+    :return: List of feasible solutions for the variables. The mapping from the variable solution to
+    the corresponding tile on the board is maintained by pos_var.
+    """
+    prob = LpProblem("oneStep", LpMinimize)
+    var = []
+    for i in range(linear_mat.shape[1]):
+        var.append(LpVariable('a' + str(i), lowBound=0, upBound=1, cat='Integer'))
+
+    if len(constraints) > 0:
+        for i in range(len(constraints)):
+            var_num, val = constraints[i]
+            var[var_num] = val
+
+    constraints_var = []
+    for j in range(len(edge_num)):
+        constraint = LpVariable('b' + str(j), lowBound=0, upBound=0, cat='Integer')
+        for k in range(linear_mat.shape[1]):
+            constraint += var[k] * linear_mat[j][k]
+        constraints_var.append(constraint)
+
+    for j in range(len(edge_num)):
+        prob += constraints_var[j] == edge_num[j], "constraint " + str(j + 1)
+
+    feas_sol = []
+    while True:
+        prob.solve()
+        if LpStatus[prob.status] == "Optimal":
+            sol = []
+            for i in range(len(var)):
+                sol.append(value(var[i]))
+            feas_sol.append(sol)
+            prob += lpSum([var[i] for i in range(len(var)) if value(var[i]) == 1]) <= len(
+                [var[i] for i in range(len(var)) if value(var[i]) == 1]) - 1
+        else:
+            break
+    feas_sol = np.array(feas_sol)
+    return feas_sol
+
 def custom_reduction(u):
     """
     Custom reduction function for the LU decomposed matrix 'u'. 
@@ -164,27 +222,33 @@ def custom_reduction(u):
         unique, counts = np.unique(row, return_counts=True)
         counts_map = dict(zip(unique, counts))
 
-        if 1.0 in counts_map:
+        if 1.0 not in counts_map:
+            counts_map[1.0] = 0
+        if -1.0 not in counts_map:
+            counts_map[-1.0] = 0
+        if 0.0 not in counts_map:
+            counts_map[0.0] = 0
+
+        if counts_map[1.0] > 0:
             if counts_map[1.0] == 2 and row[-1] == 1:  # If there is a single 1 and a 1 at the end.
                 # Then reduce with row
                 solved_rows.append(i)  # This row is fully solved.
                 u = reduce_row(u, row, i, solved_rows)
-            elif counts_map[1.0] == 1 and row[-1] == 0:  # If there is a single 1 and a 0 at the end.
+            elif counts_map[1.0] + counts_map[-1.0] == 1 and row[-1] == 0:
                 solved_rows.append(i)  # This row is fully solved
                 u = reduce_row(u, row, i, solved_rows)
 
-        if -1.0 in counts_map:
+        if counts_map[-1.0] > 0:
             if counts_map[-1.0] == 1 and row[-1] == 1:
                 solved_rows.append(i)
                 u = reduce_row(u, row, i, solved_rows, minus_one=True)
-            elif counts_map[-1.0] == 1 and row[-1] == 0:
+            elif counts_map[1.0] + counts_map[-1.0] == 1 and row[-1] == 0:
                 solved_rows.append(i)
                 u = reduce_row(u, row, i, solved_rows, minus_one=True)
         else:
             pass
 
     return u
-
 
 def reduce_row(u, row, row_num, solved_rows, minus_one=False):
     """
@@ -218,7 +282,6 @@ def reduce_row(u, row, row_num, solved_rows, minus_one=False):
             u[i] = u[i] - row
     return u
 
-
 def delete_zero_cols(chosen_rows, pos_var):
     """
     Given the chosen rows to solve partially in the serial portion of the code,
@@ -249,29 +312,73 @@ def delete_zero_cols(chosen_rows, pos_var):
 
     return chosen_rows, new_pos_var
 
+def choose_rows(U, b, num_threads):
+    """ 
+    Chooses the first set of variables to find feasible solutions for. 
+    U: numpy matrix from LU decomposition of the binary equation matrix.
+    num_threads: number of threads for which we select the matrix.
+    pos_var: Maps variables to true position on board.
+    """
+    possible_rows = []
+    delete_rows = []
+    selected_b = []
 
-#####################################################
-# Helper Methods
-#####################################################
-def is_unopened(board, index):
-    """Takes in a tuple 'index', and board.
-    Returns true if tile is unopened"""
-    return board[index[0]][index[1]] == -1
+    for i in range(len(U)):
+        row = U[i]
+        unique, counts = np.unique(row, return_counts=True)
+        counts_map = dict(zip(unique, counts))
+
+        if 1.0 not in counts_map:
+            counts_map[1.0] = 0
+        if -1.0 not in counts_map:
+            counts_map[-1.0] = 0
+        if 0.0 not in counts_map:
+            counts_map[0.0] = 0
+
+        if counts_map[1.0] + counts_map[-1.0] == 1:
+            continue  # We don't want to pick this row
+        elif counts_map[0.0] == len(U[0]):
+            delete_rows.append(i)
+        else:
+            possible_rows.append(row)
+            selected_b.append(b[i])
+    np.delete(U, delete_rows, axis=0)
+    minesweeper_logger.debug("Possible rows \n%s", possible_rows)
+    if len(possible_rows) >= num_threads:
+        return np.array(possible_rows[-1-num_threads:-1]), selected_b[-1-num_threads:-1]  # Return all the rows.
+    else:
+        return np.array(possible_rows[:]), selected_b[:]
 
 
-def is_opened(board, index):
-    return not is_unopened(board, index)
 
-def set_array_for_scatter(arr):
-    num_processors = comm.size
-    new_arr = [[] for i in range(num_processors)] # This MUST have size comm.size by the end.
+############################################
+### SHARED IMPLEMENTATION #################
+###########################################
+class myThread (threading.Thread):
+   def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
+      threading.Thread.__init__(self)
+      self.threadID = threadID
+      self.name = name
+      self.counter = counter
+      self.linear_mat_reduced = linear_mat_reduced
+      self.edge_num_reduced = edge_num_reduced
+      self.partial_feasible_sol = partial_feasible_sol
+      self.pos_var = pos_var
+      self.new_pos_var = new_pos_var
 
-    for i, elem in enumerate(arr):
-        array_index = i % num_processors
-        new_arr[array_index].append(elem)
+   def run(self):
+      # Get lock to synchronize threads
+      threadLock = threading.Lock()
+      threadLock.acquire()
+      time_parallel_proc = time.time()
+      self.feas_sol = parallel_solving(self.linear_mat_reduced, self.edge_num_reduced, self.partial_feasible_sol, self.pos_var, self.new_pos_var, self.threadID)
+      end_time_parallel_proc = time.time()
+      minesweeper_logger.info("Proc {} took \n%s".format(self.threadID), end_time_parallel_proc - time_parallel_proc)
+      # Free lock to release next thread
+      threadLock.release()
 
-    return new_arr
-
+   def get_value(self):
+      return self.feas_sol
 
 def solve_step(board, num_proc):
     time_solve_step = 0
@@ -300,7 +407,7 @@ def solve_step(board, num_proc):
 
     clear_grid_index = choose_clear_grids(u)
     if len(clear_grid_index) > 0:
-        print "I am sure"
+        minesweeper_logger.info("I am sure")
         clear_grid_early = []
         for i in range(len(clear_grid_index)):
             tile_to_open = pos_var[clear_grid_index[i]]
@@ -312,7 +419,7 @@ def solve_step(board, num_proc):
         time_solve_step = time.time() - start_solve_step
         return {'grids':clear_grid_early, 'times':[time_solve_step, 0, 0, 0]}
     else:
-        print "I am guessing"
+        minesweeper_logger.info("I am guessing")
 
     
 
@@ -397,7 +504,6 @@ def solve_step(board, num_proc):
     time_solve_step = time.time() - start_solve_step
     return {'grids':grids, 'times':[time_solve_step, time_bp_solver, time_partial_bp_solver, time_custom_reduction]}
 
-
 def solve_shared(board, num_proc):
     global clear_grid
     times = [0, 0, 0, 0]
@@ -410,6 +516,31 @@ def solve_shared(board, num_proc):
     # print(next_move)
     del clear_grid[-1]
     return [next_move[0], next_move[1]] + times
+
+
+def parallel_solving(linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var, threadID):
+    feas_sol = []
+    for j, sol in enumerate(partial_feasible_sol):
+        if j % NUM_THREADS == threadID:
+            constraints = [(pos_var.index(new_pos_var[i]), sol[i]) for i in range(len(sol))]
+            feas_sol.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints))
+    return feas_sol
+
+
+#####################################
+##### MPI IMPLEMENTATION ###########
+###################################
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+def set_array_for_scatter(arr):
+    num_processors = comm.size
+    new_arr = [[] for i in range(num_processors)] # This MUST have size comm.size by the end.
+
+    for i, elem in enumerate(arr):
+        array_index = i % num_processors
+        new_arr[array_index].append(elem)
+
+    return new_arr
 
 def solve_distributed(board):
     global clear_grid_distributed
@@ -428,6 +559,9 @@ def solve_step_distributed(board):
     new_pos_var = None
     pos_var = None
 
+    start_solve_step = time.time()
+    time_solve_step = 0
+
     minesweeper_logger.debug("I am rank {}".format(rank))
     comm.Barrier()
     minesweeper_logger.debug("I am rank {}".format(rank))
@@ -443,6 +577,11 @@ def solve_step_distributed(board):
     time_partial_bp_solver = 0
     time_custom_reduction = 0
     time_bp_solver = 0
+
+
+    early_return = False
+    clear_grid_early = None
+
     if rank == 0:
         minesweeper_logger.debug("Edge num is: \n%s", edge_num_np)
         # Augment the matrix to do LU decomposition.
@@ -451,8 +590,23 @@ def solve_step_distributed(board):
         pl, u = linalg.lu(linear_matrix_augmented, permute_l=True)  # Perform LU decomposition. U is gaussian eliminated.
         minesweeper_logger.debug("U matrix of linear equations joined matrix is: \n%s", u)
 
+        clear_grid_index = choose_clear_grids(u)
+        if len(clear_grid_index) > 0:
+            minesweeper_logger.info("I am sure")
+            clear_grid_early = []
+            for i in range(len(clear_grid_index)):
+                tile_to_open = pos_var[clear_grid_index[i]]
+                length_of_row = len(board[0])
+                y_index = tile_to_open / length_of_row
+                x_index = tile_to_open % length_of_row
+                clear_grid_early.append([x_index, y_index])
+            # return clear_grid_early
+            time_solve_step = time.time() - start_solve_step
+            early_return = True
 
-
+            # return {'grids': clear_grid_early, 'times': [time_solve_step, 0, 0, 0]}
+        else:
+            minesweeper_logger.info("I am guessing")
 
         start_custom_reduction = time.time()
         reduced_u = custom_reduction(u)
@@ -462,6 +616,15 @@ def solve_step_distributed(board):
 
         edge_num_reduced = list(reduced_u[:, -1])
         linear_mat_reduced = reduced_u[:, :-1]
+
+    early_return = comm.bcast(early_return, root=0)
+    clear_grid_early = comm.bcast(clear_grid_early, root=0)
+    time_solve_step = comm.bcast(time_solve_step, root=0)
+    if early_return:
+        return {'grids': clear_grid_early, 'times': [time_solve_step, 0, 0, 0]}
+
+
+
 
     if rank == 0:
         # Select rows that we want to solve as a subproblem in the serial part.
@@ -527,7 +690,7 @@ def solve_step_distributed(board):
             parallel_feasible_solutions.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints)) # All processors solve.
             end_time_parallel_proc = time.time()
 
-            minesweeper_logger.debug("Proc {} took {}".format(rank, end_time_parallel_proc - time_parallel_proc)) # All processors log.
+            minesweeper_logger.info("Proc {} took {}".format(rank, end_time_parallel_proc - time_parallel_proc)) # All processors log.
             if parallel_time == -float("inf"):
                 parallel_time = end_time_parallel_proc - time_parallel_proc
             else:
@@ -591,109 +754,13 @@ def solve_step_distributed(board):
     return {'grids': grids, 'times': [time_solve_step, 0, time_partial_bp_solver, time_custom_reduction]}
     # return [x_index, y_index, 0, 0, 0, 0]
 
-def prepare(board):
-    """
-    :param board: 
-    :return: 
-        :linear_mat: Linear equation matrix, to be further processed and solved using
-        the *binary* equation solver. This matrix is NOT augmented, and only contains the equations.
-        :edge_num: This is the value vector (array) corresponding to linear_equation matrix. Used in
-        creating the augmented matrix. This value will always be the value of the opened tiles. 
-        :pos_var: A customized mapping from variable numbers (i.e. columns of linear_mat) to the actual
-        tile indices on the board. For instance, variable x_3 might correspond to the 26th tile on the board.
-    """
-    num_cols = len(board[0])
-    num_rows = len(board)
-    pos_var = []
-    edge_num = []
-    idx_mat = []
-    for i, j in itertools.product(range(num_cols), range(num_rows)):
-        if board[j][i] > 0:
-            var_idx = []
-            for offset_x, offset_y in itertools.product([-1, 0, 1], [-1, 0, 1]):
-                neighbor_x = i + offset_x
-                neighbor_y = j + offset_y
-                if neighbor_x >= 0 and neighbor_y >= 0 and neighbor_x < num_cols and neighbor_y < num_rows and \
-                                board[neighbor_y][neighbor_x] == -1:
-                    cur_neighbor_idx = neighbor_y * num_cols + neighbor_x
-                    var_idx.append(cur_neighbor_idx)
-                    if cur_neighbor_idx not in pos_var:
-                        pos_var.append(cur_neighbor_idx)
-            if len(var_idx) > 0:
-                cur_number_idx = j * num_cols + i
-                edge_num.append(board[cur_number_idx / num_cols][cur_number_idx % num_cols])
-                idx_mat.append([pos_var.index(idx) for idx in var_idx])
-
-    linear_mat = np.zeros((len(edge_num), len(pos_var)), dtype=np.int8)
-    for i in range(len(edge_num)):
-        for j in idx_mat[i]:
-            linear_mat[i][j] = 1
-    edge_num = np.array(edge_num)
-    return linear_mat, edge_num, pos_var
 
 
-def solve_binary_program(linear_mat, edge_num, constraints=[]):
-    """
-    Solves the given binary program, and returns ALL feasible solutions. 
-    The PULP solver used as a subroutine does not actually have a facility to return
-    the set of all feasible solutions. This method does so using a while(True) loop.
-    One the PULP solver returns a set of solutions, the binary program is restricted
-    to add another constraint that prevents those variables from taking those exact values. 
-    For instance, suppose that the pulp solver returns the values
-    S_1 = (x_1 = 1, x_2 = 1, x_3 = 0, x_4 = 1). A new constraint is added that restricts
-    x_1 + x_2 + x_4 from being 3 again. The nature of minesweeper is such that
-    S_2 = (x_1 = 1, x_2 = 1, x_3 = 1, x_4 = 1) will not be a feasible solution if S_1 is
-     a feasible solution. 
-    :param linear_mat: Binary equation matrix. Non-augmented. In an equation Ax = b, the A matrix.
-    :param edge_num: Value vector. In Ax = b, the b vector. 
-    :param constraints: Optional, additional constraints imposed on the solver. 
-    These additional constraints are the heart of the parallelization. This binary_program is
-     first used to find a subset of the feasible solutions. Then, suppose that the variables we
-     gather solutions for are (x_1, x_2, x_3), and we get 6 possible solutions. These are scattered to 
-     6 different processors, and each one solves binary_programs with additional constraints constraining
-     x_1, x_2, x_3 to be the values that are assigned to said processor. 
 
-    :return: List of feasible solutions for the variables. The mapping from the variable solution to
-    the corresponding tile on the board is maintained by pos_var.
-    """
-    prob = LpProblem("oneStep", LpMinimize)
-    var = []
-    for i in range(linear_mat.shape[1]):
-        var.append(LpVariable('a' + str(i), lowBound=0, upBound=1, cat='Integer'))
-
-    if len(constraints) > 0:
-        for i in range(len(constraints)):
-            var_num, val = constraints[i]
-            var[var_num] = val
-
-    constraints_var = []
-    for j in range(len(edge_num)):
-        constraint = LpVariable('b' + str(j), lowBound=0, upBound=0, cat='Integer')
-        for k in range(linear_mat.shape[1]):
-            constraint += var[k] * linear_mat[j][k]
-        constraints_var.append(constraint)
-
-    for j in range(len(edge_num)):
-        prob += constraints_var[j] == edge_num[j], "constraint " + str(j + 1)
-
-    feas_sol = []
-    while True:
-        prob.solve()
-        if LpStatus[prob.status] == "Optimal":
-            sol = []
-            for i in range(len(var)):
-                sol.append(value(var[i]))
-            feas_sol.append(sol)
-            prob += lpSum([var[i] for i in range(len(var)) if value(var[i]) == 1]) <= len(
-                [var[i] for i in range(len(var)) if value(var[i]) == 1]) - 1
-        else:
-            break
-    feas_sol = np.array(feas_sol)
-    return feas_sol
 
 
 ##############################################################
-## Web Framework
+############## WEB FRAMEWORK #################################
 ##############################################################
 
 app = Flask(__name__, static_folder='static', static_url_path='')
@@ -744,11 +811,12 @@ if __name__ == '__main__':
     app.config['autostart'] = args.autostart
     app.config['mpi'] = args.mpi
 
-    if args.deploy:
-        app.run(host= '0.0.0.0')
-    else:
-        port = 5000 + random.randint(0, 999)
-        url = "http://127.0.0.1:{0}".format(port)
-        threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
-        app.run(port=port, debug=False)
+    # if args.deploy:
+    #     app.run(host= '0.0.0.0')
+    # else:
+    #     port = 5000 + random.randint(0, 999)
+    #     url = "http://127.0.0.1:{0}".format(port)
+    #     threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
+    #     app.run(port=port, debug=False)
+    autosolve()
 
