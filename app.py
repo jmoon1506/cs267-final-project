@@ -269,7 +269,7 @@ def set_array_for_scatter(arr):
     return new_arr
 
 
-def solve_step(board):
+def solve_step(board, num_proc):
     time_solve_step = 0
     time_custom_reduction = 0
     time_partial_bp_solver = 0
@@ -323,7 +323,7 @@ def solve_step(board):
 
 
     # Select rows that we want to solve as a subproblem in the serial part.
-    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = NUM_THREADS/4)
+    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = num_proc/4)
     selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
 
     minesweeper_logger.debug("Selected rows \n%s", selected_rows)
@@ -350,17 +350,17 @@ def solve_step(board):
 
         threads = []
         # Create new threads
-        for i in range(NUM_THREADS):
+        for i in range(num_proc):
             threads.append(myThread(i, "Thread"+str(i), i, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var))
 
         # Start new Threads
-        for i in range(NUM_THREADS):
+        for i in range(num_proc):
             threads[i].start()
 
         # Wait for all threads to complete
         for t in threads:
             t.join()
-        for i in range(NUM_THREADS):
+        for i in range(num_proc):
             feas_sol += threads[i].get_value()
 
     if len(partial_feasible_sol) <= 1:
@@ -394,11 +394,11 @@ def solve_step(board):
     return {'grids':grids, 'times':[time_solve_step, time_bp_solver, time_partial_bp_solver, time_custom_reduction]}
 
 
-def solve_serial(board):
+def solve_shared(board, num_proc):
     global clear_grid
     times = [0, 0, 0, 0]
     if len(clear_grid) == 0:
-        output = solve_step(board)
+        output = solve_step(board, num_proc)
         # print(output)
         times = output['times']
         clear_grid = output['grids']
@@ -406,9 +406,6 @@ def solve_serial(board):
     # print(next_move)
     del clear_grid[-1]
     return [next_move[0], next_move[1]] + times
-
-def solve_shared(board):
-    return solve_serial(board)
 
 def solve_distributed(board):
     linear_mat_reduced = None
@@ -665,10 +662,10 @@ def solve_next():
     gameId = data["gameId"]
     solution = []
     if data["procType"] == "serial":
-        solution = solve_serial(data["board"])
+        solution = solve_shared(data["board"], 1)
         solution.append(0)
     elif data["procType"] == "shared":
-        solution = solve_shared(data["board"])
+        solution = solve_shared(data["board"], NUM_THREADS)
         solution.append(1)
     elif data["procType"] == "distrib":
         solution = solve_distributed(data["board"])
