@@ -58,6 +58,7 @@ class MSBoard(object):
         """
         self.mine_map = np.zeros((self.board_height, self.board_width),
                                  dtype=np.uint8)
+        np.random.seed(3001)
         idx_list = np.random.permutation(self.board_width*self.board_height)
         idx_list = idx_list[:self.num_mines]
 
