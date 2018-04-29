@@ -36,8 +36,8 @@ board.init_board()
 
 def autosolve():
     my_board = np.zeros((board.board_height, board.board_width))
-    print(len(my_board))
-    print(len(my_board[0]))
+#    print(len(my_board))
+#    print(len(my_board[0]))
 
     for i in range(len(board.info_map)):
         for j in range(len(board.info_map[0])):
@@ -51,7 +51,7 @@ def autosolve():
         for i in range(len(board.info_map)):
             for j in range(len(board.info_map[0])):
                 my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
-        # board.print_board()
+        board.print_board()
 
 
 
