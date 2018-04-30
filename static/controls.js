@@ -1,7 +1,7 @@
 var paramObj = {
-	b:	new Params( 16, 16, 48 ),
-	i:	new Params( 50, 50, 500 ),
-	a:	new Params( 32, 32, 140 )
+	b:	new Params( 16, 16, 36 ),
+	i:	new Params( 24, 24, 72 ),
+	a:	new Params( 32, 32, 96 )
 }
 
 function Controls() {
