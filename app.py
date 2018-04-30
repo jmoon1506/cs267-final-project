@@ -184,7 +184,7 @@ def solve_binary_program(linear_mat, edge_num, constraints=[]):
     prob = LpProblem("oneStep", LpMinimize)
     var = []
     for i in range(linear_mat.shape[1]):
-        var.append(LpVariable('a' + str(i), lowBound=0, upBound=1, cat='Integer'))
+        var.append(LpVariable('alpha' + str(i), lowBound=0, upBound=1, cat='Integer'))
 
     if len(constraints) > 0:
         for i in range(len(constraints)):
@@ -193,7 +193,7 @@ def solve_binary_program(linear_mat, edge_num, constraints=[]):
 
     constraints_var = []
     for j in range(len(edge_num)):
-        constraint = LpVariable('b' + str(j), lowBound=0, upBound=0, cat='Integer')
+        constraint = LpVariable('beta' + str(j), lowBound=0, upBound=0, cat='Integer')
         for k in range(linear_mat.shape[1]):
             constraint += var[k] * linear_mat[j][k]
         constraints_var.append(constraint)
