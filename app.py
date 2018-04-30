@@ -27,11 +27,17 @@ minesweeper_logger = None
 args = None
 
 def log_debug(msg, val):
-    if not args.web:
+    if args.web:
+        pass
+        # print(msg, val)
+    else:
         minesweeper_logger.debug(msg, val)
 
 def log_info(msg):
-    if not args.web:
+    if args.web:
+        pass
+        # print(msg)
+    else:
         minesweeper_logger.info(msg)
 
 def autosolve(procType):
@@ -566,9 +572,9 @@ def solve_step_distributed(board):
     start_solve_step = time.time()
     time_solve_step = 0
 
-    log_debug("I am rank {}".format(rank))
+    log_info("I am rank {}".format(rank))
     comm.Barrier()
-    log_debug("I am rank {}".format(rank))
+    log_info("I am rank {}".format(rank))
 
     if is_unopened(board, (0, 0)):
         return {'grids': [[0, 0]], 'times': [0, 0, 0, 0]}
@@ -775,11 +781,6 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 def index():
     options = {'autostart': app.config.get('autostart'), 'proc': app.config.get('solver')}
     return render_template('index.html', options=options)
-    # return 'Hello, World!'
-# @app.route('/')
-# def hello_world():
-#     return 'Hello, World!'
-
 
 @app.route('/api/solve_next', methods=['POST'])
 def solve_next():
@@ -798,9 +799,6 @@ def solve_next():
     elif data["procType"] == "shared":
         solution = solve_shared(data["board"], NUM_THREADS)
         solution.append(1)
-    elif data["procType"] == "distrib":
-        solution = solve_distributed(data["board"])
-        solution.append(2)
     else:
         print("invalid procType")
         return
@@ -809,18 +807,18 @@ def solve_next():
 
 
 if __name__ == '__main__':
-    # global args
     app.debug = True
     parser = argparse.ArgumentParser()
     parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
     parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads")
-    parser.add_argument("-proc", default='shared', type=str, help="Parallel processing type")
+    parser.add_argument("-proc", default='serial', type=str, help="Parallel processing type")
     parser.add_argument("--web", help="Run as a web app", action="store_true")
     args = parser.parse_args()
     NUM_THREADS = args.p
     app.config['autostart'] = args.autostart
     app.config['proc'] = args.proc
+    print(rank)
 
     if args.web:
         if args.deploy:
@@ -832,7 +830,6 @@ if __name__ == '__main__':
             app.run(port=port, debug=False)
 
     else:
-        # global minesweeper_logger, board
         logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                             datefmt='%d-%m-%Y:%H:%M:%S',
                             level=logging.INFO)

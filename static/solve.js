@@ -11,6 +11,11 @@ $('#solve_auto').submit(function(e) {
         theControls.request_solve();
     }
     else {
+        totalComputeTime += computeTime;
+        computeTime = 0;
+        computeTimer.innerHTML = computeTime.toFixed(2);
+        window.clearInterval(computeTimerObj);
+        computeTimerObj = null;
         this.firstChild.value = "Start auto-solve";
     }
 });
