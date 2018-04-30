@@ -772,7 +772,7 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 
 @app.route('/')
 def index():
-    options = {'autostart': app.config.get('autostart'), 'mpi': app.config.get('mpi')}
+    options = {'autostart': app.config.get('autostart'), 'proc': app.config.get('proc')}
     return render_template('index.html', options=options)
 
 
@@ -811,15 +811,15 @@ if __name__ == '__main__':
     parser.add_argument("-proc", default='shared', type=str, help="Parallel processing type")
     args = parser.parse_args()
     NUM_THREADS = args.p
-    # app.config['autostart'] = args.autostart
-    # app.config['mpi'] = args.mpi
+    app.config['autostart'] = args.autostart
+    app.config['proc'] = args.proc
 
-    # if args.deploy:
-    #     app.run(host= '0.0.0.0')
-    # else:
-    #     port = 5000 + random.randint(0, 999)
-    #     url = "http://127.0.0.1:{0}".format(port)
-    #     threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
-    #     app.run(port=port, debug=False)
-    autosolve(args.proc)
+    if args.deploy:
+        app.run(host= '0.0.0.0')
+    else:
+        port = 5000 + random.randint(0, 999)
+        url = "http://127.0.0.1:{0}".format(port)
+        threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
+        app.run(port=port, debug=False)
+    # autosolve(args.proc)
 

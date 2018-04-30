@@ -10,7 +10,8 @@ function Controls() {
 	this.solve = document.getElementById("solve");
 	this.ctrlElements = this.controlsForm.elements;
 	this.auto_solve = options.autostart;
-	if (options.mpi) {
+	console.log(options.proc);
+	if (options.proc == 'distrib') {
 		procType = 'distrib';
 		document.getElementById("proc_serial").checked = false;
 		document.getElementById("proc_shared").checked = false;
