@@ -812,6 +812,7 @@ def solve_next():
 
 
 if __name__ == '__main__':
+    global NUM_THREADS
     parser = argparse.ArgumentParser()
     parser.add_argument("--height", default=8, type=int, help="Optional: Board height. Default is 8.")
     parser.add_argument("--width", default=8, type=int, help="Optional: Board width. Default is 8.")
@@ -835,11 +836,9 @@ if __name__ == '__main__':
     if solver == 'distributed':
         solver_method = solve_step_distributed
     elif solver == 'shared':
-        global NUM_THREADS
         NUM_THREADS = args.p
         solver_method = solve_step_shared
     elif solver == 'serial':
-        global NUM_THREADS
         NUM_THREADS = 1
         solver_method = solve_step_shared
     else:
