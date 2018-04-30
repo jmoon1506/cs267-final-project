@@ -34,7 +34,7 @@ clear_grid_distributed = []
 board = msboard.MSBoard(16, 32, 99)
 board.init_board()
 
-def autosolve():
+def autosolve(procType):
     my_board = np.zeros((board.board_height, board.board_width))
     print(len(my_board))
     print(len(my_board[0]))
@@ -44,7 +44,10 @@ def autosolve():
             my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
     while board.check_board() == 2:
-        return_dict = solve_step_distributed(my_board)
+        if (procType == 'distrib'):
+            return_dict = solve_step_distributed(my_board)
+        else:
+            return_dict = solve_step_shared(my_board, NUM_THREADS)
         tile = return_dict['grids'][0]
         board.click_field(tile[0], tile[1])
         my_board = np.zeros((board.board_height, board.board_width))
@@ -381,7 +384,7 @@ class myThread (threading.Thread):
    def get_value(self):
       return self.feas_sol
 
-def solve_step(board, num_proc):
+def solve_step_shared(board, num_proc):
     time_solve_step = 0
     time_custom_reduction = 0
     time_partial_bp_solver = 0
@@ -509,7 +512,7 @@ def solve_shared(board, num_proc):
     global clear_grid
     times = [0, 0, 0, 0]
     if len(clear_grid) == 0:
-        output = solve_step(board, num_proc)
+        output = solve_step_shared(board, num_proc)
         # print(output)
         times = output['times']
         clear_grid = output['grids']
@@ -804,13 +807,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
-    parser.add_argument("-p", dest="p", default=10, type=int, help="number of threads")
-    parser.add_argument("--mpi", help="Start with MPI", action="store_true")
+    parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads")
+    parser.add_argument("-proc", default='shared', type=str, help="Parallel processing type")
     args = parser.parse_args()
-    global NUM_THREADS
     NUM_THREADS = args.p
-    app.config['autostart'] = args.autostart
-    app.config['mpi'] = args.mpi
+    # app.config['autostart'] = args.autostart
+    # app.config['mpi'] = args.mpi
 
     # if args.deploy:
     #     app.run(host= '0.0.0.0')
@@ -819,5 +821,5 @@ if __name__ == '__main__':
     #     url = "http://127.0.0.1:{0}".format(port)
     #     threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
     #     app.run(port=port, debug=False)
-    autosolve()
+    autosolve(args.proc)
 
