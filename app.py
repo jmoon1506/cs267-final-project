@@ -30,9 +30,9 @@ def log_debug(msg, val):
     if not args.web:
         minesweeper_logger.debug(msg, val)
 
-def log_info(msg, val=None):
+def log_info(msg):
     if not args.web:
-        minesweeper_logger.info(msg, val)
+        minesweeper_logger.info(msg)
 
 def autosolve(procType):
     my_board = np.zeros((board.board_height, board.board_width))
@@ -453,7 +453,7 @@ def solve_step_shared(board, num_proc):
         partial_feasible_sol = solve_binary_program(selected_rows, selected_b)
         time_partial_bp_solver = time.time() - start_partial_bp_solver
         log_debug("Partial feasible sol is \n%s", partial_feasible_sol)
-        log_info("Partial BP solver took %s", time_partial_bp_solver)
+        log_debug("Partial BP solver took %s", time_partial_bp_solver)
 
         # Imagine that we have distributed
         feas_sol = []
@@ -483,7 +483,7 @@ def solve_step_shared(board, num_proc):
         serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
         time_bp_solver = time.time() - start_bp_solver
         feas_sol = serial_feasible_soln
-        log_info("BP Solver took %s", time_bp_solver)
+        log_debug("BP Solver took %s", time_bp_solver)
 
     log_debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
     log_debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
