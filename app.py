@@ -833,11 +833,11 @@ if __name__ == '__main__':
     elif solver == 'shared':
         global NUM_THREADS
         NUM_THREADS = args.p
-        solver_method = solve_step
+        solver_method = solve_step_shared
     elif solver == 'serial':
         global NUM_THREADS
         NUM_THREADS = 1
-        solver_method = solve_step
+        solver_method = solve_step_shared
     else:
         raise 
 
