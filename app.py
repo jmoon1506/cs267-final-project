@@ -39,7 +39,7 @@ clear_grid_distributed = []
 
 def autosolve(height, width, mines, solver_method, seed):
     board = msboard.MSBoard(height, width, mines)
-    board.init_board()
+    board.init_board(seed)
 
     my_board = np.zeros((board.board_height, board.board_width))
     print(len(my_board))
