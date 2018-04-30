@@ -490,9 +490,8 @@ def solve_step_shared(board, num_proc):
         time_bp_solver = time.time() - start_bp_solver
         feas_sol = serial_feasible_soln
         log_debug("BP Solver took %s", time_bp_solver)
-
-    log_debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
-    log_debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
+        log_debug("Length of feasible solution from reduction: \n%s", len(feas_sol))
+        log_debug("Length of feasible solution from serial: \n%s", serial_feasible_soln)
 
     probabilities = np.sum(feas_sol, axis=0)
 
