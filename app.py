@@ -820,11 +820,11 @@ if __name__ == '__main__':
     parser.add_argument("-p", dest="p", default=10, type=int, help="number of threads, only for shared implementation")
 
     args = parser.parse_args()
-    height = args['height']
-    width = args['width']
-    mines = args['mines']
-    solver = args['solver']
-    web = args['web']
+    height = args.height
+    width = args.width
+    mines = args.mines
+    solver = args.solver
+    web = args.web
     app.config['autostart'] = args.autostart
 
     solver_method = None
@@ -832,7 +832,7 @@ if __name__ == '__main__':
         solver_method = solve_step_distributed
     elif solver == 'shared':
         global NUM_THREADS
-        NUM_THREADS = args['p']
+        NUM_THREADS = args.p
         solver_method = solve_step
     elif solver == 'serial':
         global NUM_THREADS
