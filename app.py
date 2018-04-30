@@ -36,11 +36,9 @@ clear_grid_distributed = []
 board = msboard.MSBoard(16, 32, 99)
 board.init_board()
 
-<<<<<<< HEAD
-def autosolve(procType):
-=======
+
+
 def autosolve(height, width, mines, solver_method):
->>>>>>> Clean up argparse, add more arguments
     my_board = np.zeros((board.board_height, board.board_width))
     print(len(my_board))
     print(len(my_board[0]))
@@ -50,27 +48,14 @@ def autosolve(height, width, mines, solver_method):
             my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
     while board.check_board() == 2:
-<<<<<<< HEAD
-        if (procType == 'distrib'):
-            return_dict = solve_step_distributed(my_board)
-        else:
-            return_dict = solve_step_shared(my_board, NUM_THREADS)
-=======
         return_dict = solver_method(my_board)
->>>>>>> Clean up argparse, add more arguments
         tile = return_dict['grids'][0]
         board.click_field(tile[0], tile[1])
         my_board = np.zeros((board.board_height, board.board_width))
         for i in range(len(board.info_map)):
             for j in range(len(board.info_map[0])):
                 my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
-<<<<<<< HEAD
-=======
 
-        comm.Barrier()
-        if rank == 0:
-            board.print_board()
->>>>>>> Clean up argparse, add more arguments
         comm.Barrier()
         if rank == 0:
 	    board.print_board()
@@ -826,25 +811,6 @@ def solve_next():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-<<<<<<< HEAD
-    parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
-    parser.add_argument("--deploy", help="Host over network", action="store_true")
-    parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads")
-    parser.add_argument("-proc", default='shared', type=str, help="Parallel processing type")
-    args = parser.parse_args()
-    NUM_THREADS = args.p
-    # app.config['autostart'] = args.autostart
-    # app.config['mpi'] = args.mpi
-
-    # if args.deploy:
-    #     app.run(host= '0.0.0.0')
-    # else:
-    #     port = 5000 + random.randint(0, 999)
-    #     url = "http://127.0.0.1:{0}".format(port)
-    #     threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
-    #     app.run(port=port, debug=False)
-    autosolve(args.proc)
-=======
     parser.add_argument("--height", default=8, type=int, help="Board height")
     parser.add_argument("--width", default=8, type=int, help="Board width")
     parser.add_argument("--mines", default=10, type=int, help="Number of mines")
@@ -883,5 +849,5 @@ if __name__ == '__main__':
         threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
         app.run(port=port, debug=False)
 
->>>>>>> Clean up argparse, add more arguments
+
 
