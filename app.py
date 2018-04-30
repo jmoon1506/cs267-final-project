@@ -13,7 +13,6 @@ import time
 
 from mpi4py import MPI
 
-
 np.set_printoptions(threshold=np.nan, linewidth=1000)
 
 logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
@@ -768,8 +767,7 @@ def solve_step_distributed(board):
 ############## WEB FRAMEWORK #################################
 ##############################################################
 
-# app = Flask(__name__, static_folder='static', static_url_path='')
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='')
 
 
 @app.route('/')
@@ -806,23 +804,22 @@ def solve_next():
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=80)
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
-    # parser.add_argument("--deploy", help="Host over network", action="store_true")
-    # parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads")
-    # parser.add_argument("-proc", default='shared', type=str, help="Parallel processing type")
-    # args = parser.parse_args()
-    # NUM_THREADS = args.p
-    # app.config['autostart'] = args.autostart
-    # app.config['proc'] = args.proc
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
+    parser.add_argument("--deploy", help="Host over network", action="store_true")
+    parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads")
+    parser.add_argument("-proc", default='shared', type=str, help="Parallel processing type")
+    args = parser.parse_args()
+    NUM_THREADS = args.p
+    app.config['autostart'] = args.autostart
+    app.config['proc'] = args.proc
 
-    # if args.deploy:
-    #     app.run(host="0.0.0.0", port=80)
-    # else:
-    #     port = 5000 + random.randint(0, 999)
-    #     url = "http://127.0.0.1:{0}".format(port)
-    #     threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
-    #     app.run(port=port, debug=False)
+    if args.deploy:
+        app.run(host="0.0.0.0", port=80)
+    else:
+        port = 5000 + random.randint(0, 999)
+        url = "http://127.0.0.1:{0}".format(port)
+        threading.Timer(0.5, lambda: webbrowser.open(url) ).start()
+        app.run(port=port, debug=False)
     # autosolve(args.proc)
 
