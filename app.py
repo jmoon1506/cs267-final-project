@@ -33,12 +33,14 @@ clear_grid = []
 gameId = 0
 clear_grid_distributed = []
 
-board = msboard.MSBoard(16, 32, 99)
-board.init_board()
 
 
 
-def autosolve(height, width, mines, solver_method):
+
+def autosolve(height, width, mines, solver_method, seed):
+    board = msboard.MSBoard(height, width, mines)
+    board.init_board()
+
     my_board = np.zeros((board.board_height, board.board_width))
     print(len(my_board))
     print(len(my_board[0]))
@@ -48,7 +50,7 @@ def autosolve(height, width, mines, solver_method):
             my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
     while board.check_board() == 2:
-        return_dict = solver_method(my_board)
+        return_dict = solver_method(my_board, NUM_THREADS) # NUM_THREADS is unused in distributed
         tile = return_dict['grids'][0]
         board.click_field(tile[0], tile[1])
         my_board = np.zeros((board.board_height, board.board_width))
@@ -563,7 +565,7 @@ def solve_distributed(board):
     del clear_grid_distributed[-1]
     return [next_move[0], next_move[1]] + times
 
-def solve_step_distributed(board):
+def solve_step_distributed(board, dummy=None):
     linear_mat_reduced = None
     edge_num_reduced = None
     new_pos_var = None
@@ -811,13 +813,14 @@ def solve_next():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--height", default=8, type=int, help="Board height")
-    parser.add_argument("--width", default=8, type=int, help="Board width")
-    parser.add_argument("--mines", default=10, type=int, help="Number of mines")
-    parser.add_argument("--solver", default='serial', type=str, help="Type of solver: serial, shared or distributed")
-    parser.add_argument("--web", default=False, type=bool, help="Set to true to enable web browser")
+    parser.add_argument("--height", default=8, type=int, help="Optional: Board height. Default is 8.")
+    parser.add_argument("--width", default=8, type=int, help="Optional: Board width. Default is 8.")
+    parser.add_argument("--mines", default=10, type=int, help="Optional: Number of mines. Default is 10. ")
+    parser.add_argument("--solver", default='serial', type=str, help="Default is shared. Type of solver: serial, shared or distributed")
+    parser.add_argument("--web", default=False, type=bool, help="Set to true to enable web browser. Default is False. ")
     parser.add_argument("--autostart", help="Start auto-solve on launch. NOTE: is always true if not using web", action="store_true")
     parser.add_argument("-p", dest="p", default=10, type=int, help="number of threads, only for shared implementation")
+    parser.add_argument("--seed", default=9999, type=int, help="Optional: Set seed.")
 
     args = parser.parse_args()
     height = args.height
@@ -826,6 +829,7 @@ if __name__ == '__main__':
     solver = args.solver
     web = args.web
     app.config['autostart'] = args.autostart
+    seed = args.seed
 
     solver_method = None
     if solver == 'distributed':
@@ -842,7 +846,7 @@ if __name__ == '__main__':
         raise 
 
     if not web:
-        autosolve(height, width, mines, solver_method)
+        autosolve(height, width, mines, solver_method, seed)
     else:
         port = 5000 + random.randint(0, 999)
         url = "http://127.0.0.1:{0}".format(port)
