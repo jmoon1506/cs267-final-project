@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from flask import Flask, render_template, request, jsonify
 import sys, webbrowser, time, random, threading, argparse
 import numpy as np
@@ -51,8 +53,11 @@ def autosolve():
         for i in range(len(board.info_map)):
             for j in range(len(board.info_map[0])):
                 my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
-        board.print_board()
         comm.Barrier()
+        if rank == 0:
+	    board.print_board()
+        comm.Barrier()
+
 
 
 
