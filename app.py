@@ -44,36 +44,45 @@ def log_info(msg, val=None):
         minesweeper_logger.info(msg)
 
 def autosolve(height, width, mines, solver_method, seed):
-    with open(args.solver + '_data.txt', 'w') as f:
+    if args.save:
+        f = open(args.solver + '_' + str(args.seed) + '_' + str(args.height) + '_' + str(args.width) + '_' + str(args.mines) + '.txt', 'w')
         writer = csv.writer(f, delimiter='\t')
         writer.writerow(['width: ' + str(args.width), 'height: ' + str(args.height), 'mines: ' + str(args.mines), 'seed: ' + str(args.seed)])
         writer.writerow(['time_solve_step', 'time_bp_solver', 'time_partial_bp_solver', 'time_custom_reduction'])
-        board = msboard.MSBoard(height, width, mines)
-        board.init_board(seed)
+    board = msboard.MSBoard(height, width, mines)
+    board.init_board(seed)
 
+    my_board = np.zeros((board.board_height, board.board_width))
+    print(len(my_board))
+    print(len(my_board[0]))
+    total_time = 0
+
+    for i in range(len(board.info_map)):
+        for j in range(len(board.info_map[0])):
+            my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
+
+    while board.check_board() == 2:
+        return_dict = solver_method(my_board, NUM_THREADS) # NUM_THREADS is unused in distributed
+        if args.save:
+            writer.writerow(return_dict['times'])
+        total_time += return_dict['times'][0]
+        tile = return_dict['grids'][0]
+        board.click_field(tile[0], tile[1])
         my_board = np.zeros((board.board_height, board.board_width))
-        print(len(my_board))
-        print(len(my_board[0]))
-
         for i in range(len(board.info_map)):
             for j in range(len(board.info_map[0])):
                 my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
-        while board.check_board() == 2:
-            return_dict = solver_method(my_board, NUM_THREADS) # NUM_THREADS is unused in distributed
-            writer.writerow(return_dict['times'])
-            tile = return_dict['grids'][0]
-            board.click_field(tile[0], tile[1])
-            my_board = np.zeros((board.board_height, board.board_width))
-            for i in range(len(board.info_map)):
-                for j in range(len(board.info_map[0])):
-                    my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
-
-            comm.Barrier()
-            if rank == 0:
-                board.print_board()
-            comm.Barrier()
-
+        comm.Barrier()
+        if rank == 0:
+            board.print_board()
+        comm.Barrier()
+    if args.save:
+        f.close()
+    totals = open('total_times.txt', 'a')
+    writer = csv.writer(totals, delimiter='\t')
+    writer.writerow(['width: ' + str(args.width), 'height: ' + str(args.height), 'mines: ' + str(args.mines), 'seed: ' + str(args.seed), 'total_time: ' + str(total_time)])
+    totals.close()
 
 #######################################
 ### COMMON METHODS ####################
@@ -823,6 +832,7 @@ if __name__ == '__main__':
     parser.add_argument("--solver", default='serial', type=str, help="Default is shared. Type of solver: serial, shared or distributed")
     parser.add_argument("--web", help="Enable web browser", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
+    parser.add_argument("--save", help="Save performance data", action="store_true")
     parser.add_argument("--autostart", help="Start auto-solve on launch. NOTE: is always true if not using web", action="store_true")
     parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads, only for shared implementation")
     parser.add_argument("--seed", default=9999, type=int, help="Set random seed.")
