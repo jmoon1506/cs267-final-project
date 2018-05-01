@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-global yaposib
-import yaposib
 from flask import Flask, render_template, request, jsonify
 import sys, webbrowser, time, random, threading, argparse
 import numpy as np
@@ -204,7 +202,7 @@ def solve_binary_program(linear_mat, edge_num, constraints=[]):
 
     feas_sol = []
     while True:
-        prob.solve(yaposib)
+        prob.solve()
         if LpStatus[prob.status] == "Optimal":
             sol = []
             for i in range(len(var)):
