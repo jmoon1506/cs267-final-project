@@ -8,6 +8,7 @@ from pulp import *
 import time
 import logging
 import msboard
+import csv
 
 import thread
 
@@ -43,30 +44,35 @@ def log_info(msg, val=None):
         minesweeper_logger.info(msg)
 
 def autosolve(height, width, mines, solver_method, seed):
-    board = msboard.MSBoard(height, width, mines)
-    board.init_board(seed)
+    with open(args.solver + '_data.txt', 'w') as f:
+        writer = csv.writer(f, delimiter='\t')
+        writer.writerow(['width: ' + str(args.width), 'height: ' + str(args.height), 'mines: ' + str(args.mines), 'seed: ' + str(args.seed)])
+        writer.writerow(['time_solve_step', 'time_bp_solver', 'time_partial_bp_solver', 'time_custom_reduction'])
+        board = msboard.MSBoard(height, width, mines)
+        board.init_board(seed)
 
-    my_board = np.zeros((board.board_height, board.board_width))
-    print(len(my_board))
-    print(len(my_board[0]))
-
-    for i in range(len(board.info_map)):
-        for j in range(len(board.info_map[0])):
-            my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
-
-    while board.check_board() == 2:
-        return_dict = solver_method(my_board, NUM_THREADS) # NUM_THREADS is unused in distributed
-        tile = return_dict['grids'][0]
-        board.click_field(tile[0], tile[1])
         my_board = np.zeros((board.board_height, board.board_width))
+        print(len(my_board))
+        print(len(my_board[0]))
+
         for i in range(len(board.info_map)):
             for j in range(len(board.info_map[0])):
                 my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
-        comm.Barrier()
-        if rank == 0:
-            board.print_board()
-        comm.Barrier()
+        while board.check_board() == 2:
+            return_dict = solver_method(my_board, NUM_THREADS) # NUM_THREADS is unused in distributed
+            writer.writerow(return_dict['times'])
+            tile = return_dict['grids'][0]
+            board.click_field(tile[0], tile[1])
+            my_board = np.zeros((board.board_height, board.board_width))
+            for i in range(len(board.info_map)):
+                for j in range(len(board.info_map[0])):
+                    my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
+
+            comm.Barrier()
+            if rank == 0:
+                board.print_board()
+            comm.Barrier()
 
 
 #######################################
