@@ -467,7 +467,7 @@ def solve_step_shared(board, num_proc):
 
 
     # Select rows that we want to solve as a subproblem in the serial part.
-    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = num_proc/4)
+    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = num_proc/4+2)
     selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
 
     log_debug("Selected rows \n%s", selected_rows)
