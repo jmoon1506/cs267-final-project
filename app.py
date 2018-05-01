@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from flask import Flask, render_template, request, jsonify
 import sys, webbrowser, time, random, threading, argparse
 import numpy as np
@@ -26,21 +28,24 @@ board = msboard.MSBoard(16, 32, 99)
 minesweeper_logger = None
 args = None
 
-def log_debug(msg, val):
+def log_debug(msg, val=None):
     if args.web:
         pass
         # print(msg, val)
     else:
         minesweeper_logger.debug(msg, val)
 
-def log_info(msg):
+def log_info(msg, val=None):
     if args.web:
         pass
         # print(msg)
     else:
         minesweeper_logger.info(msg)
 
-def autosolve(procType):
+def autosolve(height, width, mines, solver_method, seed):
+    board = msboard.MSBoard(height, width, mines)
+    board.init_board(seed)
+
     my_board = np.zeros((board.board_height, board.board_width))
     print(len(my_board))
     print(len(my_board[0]))
@@ -50,20 +55,18 @@ def autosolve(procType):
             my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
     while board.check_board() == 2:
-        if (procType == 'distrib'):
-            return_dict = solve_step_distributed(my_board)
-        else:
-            return_dict = solve_step_shared(my_board, NUM_THREADS)
+        return_dict = solver_method(my_board, NUM_THREADS) # NUM_THREADS is unused in distributed
         tile = return_dict['grids'][0]
         board.click_field(tile[0], tile[1])
         my_board = np.zeros((board.board_height, board.board_width))
         for i in range(len(board.info_map)):
             for j in range(len(board.info_map[0])):
                 my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
-        board.print_board()
+
         comm.Barrier()
-
-
+        if rank == 0:
+            board.print_board()
+        comm.Barrier()
 
 
 #######################################
@@ -182,7 +185,7 @@ def solve_binary_program(linear_mat, edge_num, constraints=[]):
     prob = LpProblem("oneStep", LpMinimize)
     var = []
     for i in range(linear_mat.shape[1]):
-        var.append(LpVariable('a' + str(i), lowBound=0, upBound=1, cat='Integer'))
+        var.append(LpVariable('alpha' + str(i), lowBound=0, upBound=1, cat='Integer'))
 
     if len(constraints) > 0:
         for i in range(len(constraints)):
@@ -191,7 +194,7 @@ def solve_binary_program(linear_mat, edge_num, constraints=[]):
 
     constraints_var = []
     for j in range(len(edge_num)):
-        constraint = LpVariable('b' + str(j), lowBound=0, upBound=0, cat='Integer')
+        constraint = LpVariable('beta' + str(j), lowBound=0, upBound=0, cat='Integer')
         for k in range(linear_mat.shape[1]):
             constraint += var[k] * linear_mat[j][k]
         constraints_var.append(constraint)
@@ -562,7 +565,7 @@ def solve_distributed(board):
     del clear_grid_distributed[-1]
     return [next_move[0], next_move[1]] + times
 
-def solve_step_distributed(board):
+def solve_step_distributed(board, dummy=None):
     linear_mat_reduced = None
     edge_num_reduced = None
     new_pos_var = None
@@ -653,7 +656,7 @@ def solve_step_distributed(board):
         partial_feasible_solution = solve_binary_program(selected_rows, selected_b)
         time_partial_bp_solver = time.time() - start_partial_bp_solver
         log_debug("Partial feasible sol is \n%s", partial_feasible_solution)
-        log_info("Partial BP solver took %s", time_partial_bp_solver)
+        log_debug("Partial BP solver took %s", time_partial_bp_solver)
         log_debug("Partial feas sol len \n%s", len(partial_feasible_solution))
 
 
@@ -661,18 +664,18 @@ def solve_step_distributed(board):
     # inside of rank 0 --- 1. its length is more than 2, or its less than 2.
     # IF the length is < 2... i just wanna do serial.
     # If the length > 2 --- then I wanna scatter.
-    log_debug("I am rank {}".format(rank))
+    log_info("I am rank {}".format(rank))
     # if rank == 0:
     log_debug("Partial feasible solution length is, %s", len(partial_feasible_solution))
     # if len(partial_feasible_solution) > 2:
     orig_partial_feasible_solution = comm.bcast(partial_feasible_solution, root=0)
     to_scatter = set_array_for_scatter(partial_feasible_solution)
-    log_debug("Going to scatter from rank {}".format(rank))
+    log_info("Going to scatter from rank {}".format(rank))
     partial_feasible_solution = comm.scatter(to_scatter, root=0)
     # Broadcast all the data required.
-    log_debug("Scattered partial_feasible_solution, now broadcasting from rank 0...")
+    log_info("Scattered partial_feasible_solution, now broadcasting from rank 0...")
     comm.Barrier()
-    log_debug("Finished with barrier?")
+    log_info("Finished with barrier?")
     linear_mat_reduced = comm.bcast(linear_mat_reduced, root=0)
     edge_num_reduced = comm.bcast(edge_num_reduced, root=0)
     new_pos_var = comm.bcast(new_pos_var, root=0)
@@ -680,17 +683,17 @@ def solve_step_distributed(board):
     time_partial_bp_solver = comm.bcast(time_partial_bp_solver, root=0)
     time_custom_reduction = comm.bcast(time_custom_reduction, root=0)
 
-    log_debug("I am rank {}".format(rank))
+    log_info("I am rank {}".format(rank))
     comm.Barrier()
-    log_debug("I am rank {}".format(rank))
+    log_info("I am rank {}".format(rank))
 
     parallel_feasible_solutions = [] # All procs initailize this to be entry.
-    log_debug("I am rank {}".format(rank))
+    log_info("I am rank {}".format(rank))
     parallel_time = -float("inf")
     if partial_feasible_solution != None and len(partial_feasible_solution) > 0 and len(orig_partial_feasible_solution) > 2: # This means that the root sent me something
         for j, sol in enumerate(partial_feasible_solution):
 
-            logging.debug("Proc {} partial_feasible_sol is {}".format(rank, sol))
+            log_info("Proc {} partial_feasible_sol is {}".format(rank, sol))
 
             # All processors go through their list of partial_feasible_solutions
             # set timer
@@ -706,12 +709,12 @@ def solve_step_distributed(board):
                 parallel_time += end_time_parallel_proc - time_parallel_proc
 
     min_parallel_time = comm.allreduce(parallel_time, op=MPI.MAX)
-    log_debug("I am rank {}".format(rank))
+    log_info("I am rank {}".format(rank))
     comm.Barrier()
-    log_debug("I am rank {}".format(rank))
+    log_info("I am rank {}".format(rank))
 
     parallel_feasible_solutions = comm.allreduce(parallel_feasible_solutions, MPI.SUM)
-    log_debug("Finished gathering... at rank {}, and parallel feasible solutions array is {}".format(rank, parallel_feasible_solutions))
+    log_info("Finished gathering... at rank {}, and parallel feasible solutions array is {}".format(rank, parallel_feasible_solutions))
 
 
     # if len(partial_feasible_solution) <= 2:
@@ -721,7 +724,7 @@ def solve_step_distributed(board):
     final_feasible_solution = parallel_feasible_solutions
     log_debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
 
-    log_debug("Original partial feasible soln is {}".format(orig_partial_feasible_solution))
+    log_info("Original partial feasible soln is {}".format(orig_partial_feasible_solution))
     if len(orig_partial_feasible_solution) <= 2 or final_feasible_solution == []:
         if rank == 0:
             log_info("USING SERIAL SOLVER")
@@ -731,13 +734,13 @@ def solve_step_distributed(board):
         final_feasible_solution = serial_feasible_soln
         if rank == 0:
             log_info("Serial solver took time {}\n".format(time_bp_solver))
-            log_debug("Length of serial feasible solution: \n {}".format(serial_feasible_soln))
+            log_info("Length of serial feasible solution: \n {}".format(serial_feasible_soln))
         else:
             time_solve_step = time_bp_solver
 
-    log_debug("Final feasible solution is {}".format(final_feasible_solution))
+    log_info("Final feasible solution is {}".format(final_feasible_solution))
     probabilities = np.sum(final_feasible_solution, axis=0)
-    log_debug("Probabilities is {}".format(probabilities))
+    log_info("Probabilities is {}".format(probabilities))
 
     if rank == 0 and min_parallel_time > -float("inf"):
         pass
@@ -808,16 +811,31 @@ def solve_next():
 if __name__ == '__main__':
     app.debug = True
     parser = argparse.ArgumentParser()
-    parser.add_argument("--autostart", help="Start auto-solve on launch", action="store_true")
+    parser.add_argument("--height", default=8, type=int, help="Optional: Board height. Default is 8.")
+    parser.add_argument("--width", default=8, type=int, help="Optional: Board width. Default is 8.")
+    parser.add_argument("--mines", default=10, type=int, help="Optional: Number of mines. Default is 10. ")
+    parser.add_argument("--solver", default='serial', type=str, help="Default is shared. Type of solver: serial, shared or distributed")
+    parser.add_argument("--web", help="Enable web browser", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
-    parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads")
-    parser.add_argument("-proc", default='serial', type=str, help="Parallel processing type")
-    parser.add_argument("--web", help="Run as a web app", action="store_true")
+    parser.add_argument("--autostart", help="Start auto-solve on launch. NOTE: is always true if not using web", action="store_true")
+    parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads, only for shared implementation")
+    parser.add_argument("--seed", default=9999, type=int, help="Set random seed.")
     args = parser.parse_args()
     NUM_THREADS = args.p
     app.config['autostart'] = args.autostart
-    app.config['proc'] = args.proc
-    print(rank)
+    app.config['solver'] = args.solver
+
+    solver_method = None
+    if args.solver == 'distributed':
+        solver_method = solve_step_distributed
+    elif args.solver == 'shared':
+        NUM_THREADS = args.p
+        solver_method = solve_step_shared
+    elif args.solver == 'serial':
+        NUM_THREADS = 1
+        solver_method = solve_step_shared
+    else:
+        raise
 
     if args.web:
         if args.deploy:
@@ -837,15 +855,5 @@ if __name__ == '__main__':
         logging.getLogger("flask").setLevel(logging.WARNING)
         logging.getLogger('werkzeug').setLevel(logging.WARNING)
         board.init_board()
-        autosolve(args.proc)
-
-# from flask import Flask
-# app = Flask(__name__)
-
-# @app.route('/')
-# def hello_world():
-#     return 'Hello, World!'
-
-# if __name__ == "__main__":
-#     app.run(host="0.0.0.0", port=80)
+        autosolve(args.height, args.width, args.mines, solver_method, args.seed)
 

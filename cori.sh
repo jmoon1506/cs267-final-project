@@ -5,4 +5,4 @@ module load python
 pip install --user pulp
 ip="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"
 echo "Hosting app at $ip:5000"
-python minesweeper.py --deploy
+python app.py --autostart --mpi

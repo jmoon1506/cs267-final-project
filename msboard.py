@@ -41,7 +41,7 @@ class MSBoard(object):
 
         self.init_board()
 
-    def init_board(self):
+    def init_board(self, seed=9999):
         """Init a valid board by given settings.
         Parameters
         ----------
@@ -58,7 +58,7 @@ class MSBoard(object):
         """
         self.mine_map = np.zeros((self.board_height, self.board_width),
                                  dtype=np.uint8)
-        np.random.seed(3001)
+        np.random.seed(seed)
         idx_list = np.random.permutation(self.board_width*self.board_height)
         idx_list = idx_list[:self.num_mines]
 
