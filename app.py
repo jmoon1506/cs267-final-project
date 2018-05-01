@@ -11,7 +11,7 @@ import msboard
 import csv
 
 import thread
-
+import os
 import time
 
 from mpi4py import MPI
@@ -79,9 +79,14 @@ def autosolve(height, width, mines, solver_method, seed):
         comm.Barrier()
     if args.save:
         f.close()
+        
+    if not os.path.exists('total_times.txt'):
+        with open("total_times.txt", "w") as totals:
+            writer = csv.writer(totals, delimiter='\t')
+            writer.writerow(['solver', 'threads', 'width', 'height', 'mines', 'seed', 'total_time'])
     totals = open('total_times.txt', 'a')
     writer = csv.writer(totals, delimiter='\t')
-    writer.writerow(['width: ' + str(args.width), 'height: ' + str(args.height), 'mines: ' + str(args.mines), 'seed: ' + str(args.seed), 'total_time: ' + str(total_time)])
+    writer.writerow([str(args.solver), str(args.p), str(args.width), str(args.height), str(args.mines), str(args.seed), str(total_time)])
     totals.close()
 
 #######################################
