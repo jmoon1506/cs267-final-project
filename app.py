@@ -53,8 +53,8 @@ def autosolve(height, width, mines, solver_method, seed):
     board.init_board(seed)
 
     my_board = np.zeros((board.board_height, board.board_width))
-    print(len(my_board))
-    print(len(my_board[0]))
+    # print(len(my_board))
+    # print(len(my_board[0]))
     total_time = 0
 
     for i in range(len(board.info_map)):
@@ -77,17 +77,22 @@ def autosolve(height, width, mines, solver_method, seed):
         if rank == 0:
             board.print_board()
         comm.Barrier()
-    if args.save:
-        f.close()
-        
-    if not os.path.exists('total_times.txt'):
-        with open("total_times.txt", "w") as totals:
-            writer = csv.writer(totals, delimiter='\t')
-            writer.writerow(['solver', 'threads', 'width', 'height', 'mines', 'seed', 'total_time'])
-    totals = open('total_times.txt', 'a')
-    writer = csv.writer(totals, delimiter='\t')
-    writer.writerow([str(args.solver), str(args.p), str(args.width), str(args.height), str(args.mines), str(args.seed), str(total_time)])
-    totals.close()
+
+    if args.keeptrying and board.check_board() == 0:
+        # pass
+        autosolve(height, width, mines, solver_method, int(time.time()) % 4321)
+    else:
+        if args.save:
+            f.close()
+            
+        if not os.path.exists('total_times.txt'):
+            with open("total_times.txt", "w") as totals:
+                writer = csv.writer(totals, delimiter='\t')
+                writer.writerow(['solver', 'threads', 'width', 'height', 'mines', 'seed', 'total_time'])
+        totals = open('total_times.txt', 'a')
+        writer = csv.writer(totals, delimiter='\t')
+        writer.writerow([str(args.solver), str(args.p), str(args.width), str(args.height), str(args.mines), str(args.seed), str(total_time)])
+        totals.close()
 
 #######################################
 ### COMMON METHODS ####################
@@ -838,6 +843,7 @@ if __name__ == '__main__':
     parser.add_argument("--web", help="Enable web browser", action="store_true")
     parser.add_argument("--hidelogs", help="Hide logging info", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
+    parser.add_argument("--keeptrying", help="Restart with new seed until a game completes", action="store_true")
     parser.add_argument("--save", help="Save performance data", action="store_true")
     parser.add_argument("--autostart", help="Start auto-solve on launch. NOTE: is always true if not using web", action="store_true")
     parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads, only for shared implementation")
