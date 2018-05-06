@@ -80,7 +80,7 @@ def autosolve(height, width, mines, solver_method, seed):
 
     if args.keeptrying and board.check_board() == 0:
         # pass
-        autosolve(height, width, mines, solver_method, int(time.time()) % 4321)
+        autosolve(height, width, mines, solver_method, int(seed+1))
     else:
         if args.save:
             f.close()
