@@ -30,14 +30,14 @@ minesweeper_logger = None
 args = None
 
 def log_debug(msg, val=None):
-    if args.web:
+    if args.web or args.hidelogs:
         pass
         # print(msg, val)
     else:
         minesweeper_logger.debug(msg, val)
 
 def log_info(msg, val=None):
-    if args.web:
+    if args.web or args.hidelogs:
         pass
         # print(msg)
     else:
@@ -836,6 +836,7 @@ if __name__ == '__main__':
     parser.add_argument("--mines", default=10, type=int, help="Optional: Number of mines. Default is 10. ")
     parser.add_argument("--solver", default='serial', type=str, help="Default is shared. Type of solver: serial, shared or distributed")
     parser.add_argument("--web", help="Enable web browser", action="store_true")
+    parser.add_argument("--hidelogs", help="Hide logging info", action="store_true")
     parser.add_argument("--deploy", help="Host over network", action="store_true")
     parser.add_argument("--save", help="Save performance data", action="store_true")
     parser.add_argument("--autostart", help="Start auto-solve on launch. NOTE: is always true if not using web", action="store_true")
