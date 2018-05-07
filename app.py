@@ -11,12 +11,16 @@ import msboard
 import csv
 
 import thread
+import multiprocessing
 import os
 import time
+import math
 
 from mpi4py import MPI
 
 np.set_printoptions(threshold=np.nan, linewidth=1000)
+
+# threadLock = multiprocessing.Lock()
 
 NUM_THREADS = 2
 
@@ -74,7 +78,7 @@ def autosolve(height, width, mines, solver_method, seed):
                 my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
         comm.Barrier()
-        if rank == 0:
+        if rank == 0 and not args.hidelogs:
             board.print_board()
         comm.Barrier()
 
@@ -392,31 +396,106 @@ def choose_rows(U, b, num_threads):
 ############################################
 ### SHARED IMPLEMENTATION #################
 ###########################################
+class myProcess (multiprocessing.Process):
+    def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
+        multiprocessing.Process.__init__(self)
+        self.threadID = threadID
+        self.name = name
+        self.counter = counter
+        self.linear_mat_reduced = linear_mat_reduced
+        self.edge_num_reduced = edge_num_reduced
+        self.partial_feasible_sol = partial_feasible_sol
+        self.pos_var = pos_var
+        self.new_pos_var = new_pos_var
+        # print('linear_mat_reduced: ' + str(linear_mat_reduced))
+        # print('edge_num_reduced: ' + str(edge_num_reduced))
+        # print('partial_feasible_sol: ' + str(partial_feasible_sol))
+        # print('pos_var: ' + str(pos_var))
+        # print('new_pos_var: ' + str(new_pos_var))
+        self.feas_sol_stride = len(self.linear_mat_reduced[0])
+        size = self.feas_sol_stride * (len(self.partial_feasible_sol) + len(self.linear_mat_reduced))
+        init_arr = np.empty(size)
+        init_arr.fill(-1)
+        self.feas_sol_serialized = multiprocessing.Array('d', init_arr)
+        # self.manager = multiprocessing.Manager()
+        # self.feas_sol = self.manager.list()
+
+    def run(self):
+        # Get lock to synchronize threads
+        threadLock = multiprocessing.Lock()
+        threadLock.acquire()
+        time_parallel_proc = time.time()
+        feas_sol = parallel_solving(self.linear_mat_reduced, self.edge_num_reduced, self.partial_feasible_sol, self.pos_var, self.new_pos_var, self.threadID)
+        for j in range(len(feas_sol)):
+            for i in range(self.feas_sol_stride):
+                self.feas_sol_serialized[j * self.feas_sol_stride + i] = feas_sol[j][i]
+        end_time_parallel_proc = time.time()
+        log_info("Proc {} took \n%f".format(self.threadID), end_time_parallel_proc - time_parallel_proc)
+        # Free lock to release next thread
+        threadLock.release()
+
+    def get_value(self):
+        # threadLock.acquire()
+        # value = np.reshape(self.feas_sol, (-1, len(self.linear_mat_reduced[0])))
+        # print(str(self.feas_sol) + '\n')
+        # threadLock.release()
+        # return value
+        # return self.feas_sol
+        feas_sol = []
+        max_feas_sols = len(self.partial_feasible_sol) + len(self.linear_mat_reduced)
+        for j in range(max_feas_sols):
+            row = []
+            for i in range(self.feas_sol_stride):
+                val = self.feas_sol_serialized[j * self.feas_sol_stride + i]
+                if val < 0:
+                    # reached end of data, so we break out of both loops
+                    break
+                row.append(val)
+            else:
+                # didn't reach end of data, so we use continue to avoid breaking outer loop
+                feas_sol.append(np.array(row))
+                continue
+            break
+        # print(feas_sol)
+        return feas_sol
+            # print(self.feas_sol_serialized[i])
+
 class myThread (threading.Thread):
-   def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
-      threading.Thread.__init__(self)
-      self.threadID = threadID
-      self.name = name
-      self.counter = counter
-      self.linear_mat_reduced = linear_mat_reduced
-      self.edge_num_reduced = edge_num_reduced
-      self.partial_feasible_sol = partial_feasible_sol
-      self.pos_var = pos_var
-      self.new_pos_var = new_pos_var
+    def __init__(self, threadID, name, counter, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var):
+        threading.Thread.__init__(self)
+        self.threadID = threadID
+        self.name = name
+        self.counter = counter
+        self.linear_mat_reduced = linear_mat_reduced
+        self.edge_num_reduced = edge_num_reduced
+        self.partial_feasible_sol = partial_feasible_sol
+        self.pos_var = pos_var
+        self.new_pos_var = new_pos_var
+        print('linear_mat: ' + str(len(linear_mat_reduced[0])))
+        # print('edge_num_reduced: ' + str(len(edge_num_reduced)))
+        # print('pos_var: ' + str(len(pos_var)))
+        # print('new_pos_var: ' + str(len(new_pos_var)))
+        # print('partial_feasible_sol: ' + str(len(partial_feasible_sol)))
+        # size = len(self.partial_feasible_sol)
+        # print('size: ' + str(size))
+        # print('new_pos_var: ' + str(new_pos_var))
+        # self.feas_sol = self.manager.list()
 
-   def run(self):
-      # Get lock to synchronize threads
-      threadLock = threading.Lock()
-      threadLock.acquire()
-      time_parallel_proc = time.time()
-      self.feas_sol = parallel_solving(self.linear_mat_reduced, self.edge_num_reduced, self.partial_feasible_sol, self.pos_var, self.new_pos_var, self.threadID)
-      end_time_parallel_proc = time.time()
-      log_info("Proc {} took \n%s".format(self.threadID), end_time_parallel_proc - time_parallel_proc)
-      # Free lock to release next thread
-      threadLock.release()
+    def run(self):
+        # Get lock to synchronize threads
+        threadLock = threading.Lock()
+        threadLock.acquire()
+        time_parallel_proc = time.time()
+        self.feas_sol = parallel_solving(self.linear_mat_reduced, self.edge_num_reduced, self.partial_feasible_sol, self.pos_var, self.new_pos_var, self.threadID)
+        end_time_parallel_proc = time.time()
+        log_info("Proc {} took \n%s".format(self.threadID), end_time_parallel_proc - time_parallel_proc)
+        # Free lock to release next thread
+        threadLock.release()
 
-   def get_value(self):
-      return self.feas_sol
+    def get_value(self):
+        # print('feassollen: ' + str(len(self.feas_sol))) + '\n'
+        print('feas_sol: ' + str(len(self.feas_sol[0])))
+        return self.feas_sol
 
 def solve_step_shared(board, num_proc):
     time_solve_step = 0
@@ -500,7 +579,9 @@ def solve_step_shared(board, num_proc):
         threads = []
         # Create new threads
         for i in range(num_proc):
-            threads.append(myThread(i, "Thread"+str(i), i, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var))
+            # process = multiprocessing.Process(target=parallel_solving, args=(linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var))
+            # threads.append(process)
+            threads.append(myProcess(i, "Thread"+str(i), i, linear_mat_reduced, edge_num_reduced, partial_feasible_sol, pos_var, new_pos_var))
 
         # Start new Threads
         for i in range(num_proc):
@@ -510,7 +591,9 @@ def solve_step_shared(board, num_proc):
         for t in threads:
             t.join()
         for i in range(num_proc):
+            # threads[i].get_value()
             feas_sol += threads[i].get_value()
+            # print(feas_sol)
 
     if len(partial_feasible_sol) <= 1:
         start_bp_solver = time.time()
@@ -561,6 +644,9 @@ def parallel_solving(linear_mat_reduced, edge_num_reduced, partial_feasible_sol,
         if j % NUM_THREADS == threadID:
             constraints = [(pos_var.index(new_pos_var[i]), sol[i]) for i in range(len(sol))]
             feas_sol.extend(solve_binary_program(linear_mat_reduced, edge_num_reduced, constraints))
+    # print('len: ' + str(len(feas_sol)))
+    # print('feas sol: ' + str(np.concatenate(feas_sol))) + '\n'
+    # return np.concatenate(feas_sol)
     return feas_sol
 
 
