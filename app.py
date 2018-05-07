@@ -413,7 +413,7 @@ class myProcess (multiprocessing.Process):
         # print('pos_var: ' + str(pos_var))
         # print('new_pos_var: ' + str(new_pos_var))
         self.feas_sol_stride = len(self.linear_mat_reduced[0])
-        size = self.feas_sol_stride * (len(self.partial_feasible_sol) + len(self.linear_mat_reduced))
+        size = self.feas_sol_stride * (len(self.partial_feasible_sol) + len(self.linear_mat_reduced)) * 2
         init_arr = np.empty(size)
         init_arr.fill(-1)
         self.feas_sol_serialized = multiprocessing.Array('d', init_arr)
@@ -933,7 +933,7 @@ if __name__ == '__main__':
     parser.add_argument("--save", help="Save performance data", action="store_true")
     parser.add_argument("--autostart", help="Start auto-solve on launch. NOTE: is always true if not using web", action="store_true")
     parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads, only for shared implementation")
-    parser.add_argument("--seed", default=9999, type=int, help="Set random seed.")
+    parser.add_argument("--seed", default=5555, type=int, help="Set random seed.")
     args = parser.parse_args()
     NUM_THREADS = args.p
     app.config['autostart'] = args.autostart
