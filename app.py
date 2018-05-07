@@ -48,7 +48,7 @@ def log_info(msg, val=None):
         minesweeper_logger.info(msg)
 
 def autosolve(height, width, mines, solver_method, seed):
-    if args.save:
+    if args.save and rank == 0:
         f = open(args.solver + '_' + str(args.seed) + '_' + str(args.height) + '_' + str(args.width) + '_' + str(args.mines) + '.txt', 'w')
         writer = csv.writer(f, delimiter='\t')
         writer.writerow(['width: ' + str(args.width), 'height: ' + str(args.height), 'mines: ' + str(args.mines), 'seed: ' + str(args.seed)])
@@ -65,9 +65,13 @@ def autosolve(height, width, mines, solver_method, seed):
         for j in range(len(board.info_map[0])):
             my_board[i][j] = board.info_map[i][j] if board.info_map[i][j] <= 8 else -1
 
+    # failed_to_solve = False
     while board.check_board() == 2:
         return_dict = solver_method(my_board, NUM_THREADS) # NUM_THREADS is unused in distributed
-        if args.save:
+        # if len(return_dict['grids']) == 0:
+        #     failed_to_solve = True
+        #     break
+        if args.save and rank == 0:
             writer.writerow(return_dict['times'])
         total_time += return_dict['times'][0]
         tile = return_dict['grids'][0]
@@ -82,21 +86,24 @@ def autosolve(height, width, mines, solver_method, seed):
             board.print_board()
         comm.Barrier()
 
+    # if failed_to_solve or (args.keeptrying and board.check_board() == 0):
     if args.keeptrying and board.check_board() == 0:
         # pass
         autosolve(height, width, mines, solver_method, int(seed+1))
     else:
-        if args.save:
-            f.close()
-            
-        if not os.path.exists('total_times.txt'):
-            with open("total_times.txt", "w") as totals:
-                writer = csv.writer(totals, delimiter='\t')
-                writer.writerow(['solver', 'threads', 'width', 'height', 'mines', 'seed', 'total_time'])
-        totals = open('total_times.txt', 'a')
-        writer = csv.writer(totals, delimiter='\t')
-        writer.writerow([str(args.solver), str(args.p), str(args.width), str(args.height), str(args.mines), str(args.seed), str(total_time)])
-        totals.close()
+        if rank == 0:
+            if args.save:
+                f.close()
+                
+            if not os.path.exists('total_times.txt'):
+                with open("total_times.txt", "w") as totals:
+                    writer = csv.writer(totals, delimiter='\t')
+                    writer.writerow(['solver', 'threads', 'width', 'height', 'mines', 'seed', 'total_time'])
+            totals = open('total_times.txt', 'a')
+            writer = csv.writer(totals, delimiter='\t')
+            writer.writerow([str(args.solver), str(args.p), str(args.width), str(args.height), str(args.mines), str(args.seed), str(total_time)])
+            totals.close()
+            print('Finished in ' + str(total_time) + ' seconds')
 
 #######################################
 ### COMMON METHODS ####################
@@ -413,8 +420,8 @@ class myProcess (multiprocessing.Process):
         # print('pos_var: ' + str(pos_var))
         # print('new_pos_var: ' + str(new_pos_var))
         self.feas_sol_stride = len(self.linear_mat_reduced[0])
-        size = self.feas_sol_stride * (len(self.partial_feasible_sol) + len(self.linear_mat_reduced)) * 2
-        init_arr = np.empty(size)
+        self.feas_sol_size = self.feas_sol_stride * (len(self.partial_feasible_sol) + len(self.linear_mat_reduced)) * 16
+        init_arr = np.empty(self.feas_sol_size)
         init_arr.fill(-1)
         self.feas_sol_serialized = multiprocessing.Array('d', init_arr)
         # self.manager = multiprocessing.Manager()
@@ -428,6 +435,9 @@ class myProcess (multiprocessing.Process):
         feas_sol = parallel_solving(self.linear_mat_reduced, self.edge_num_reduced, self.partial_feasible_sol, self.pos_var, self.new_pos_var, self.threadID)
         for j in range(len(feas_sol)):
             for i in range(self.feas_sol_stride):
+                # print(str(i) + ', ' + str(j))
+                # print('idx: ' + str(j * self.feas_sol_stride + i) + '\n')
+                # print(self.feas_sol_size)
                 self.feas_sol_serialized[j * self.feas_sol_stride + i] = feas_sol[j][i]
         end_time_parallel_proc = time.time()
         log_info("Proc {} took \n%f".format(self.threadID), end_time_parallel_proc - time_parallel_proc)
@@ -455,6 +465,8 @@ class myProcess (multiprocessing.Process):
                 # didn't reach end of data, so we use continue to avoid breaking outer loop
                 feas_sol.append(np.array(row))
                 continue
+            if len(feas_sol) == 0:
+                feas_sol.append(np.empty(self.feas_sol_stride))
             break
         # print(feas_sol)
         return feas_sol
@@ -471,7 +483,7 @@ class myThread (threading.Thread):
         self.partial_feasible_sol = partial_feasible_sol
         self.pos_var = pos_var
         self.new_pos_var = new_pos_var
-        print('linear_mat: ' + str(len(linear_mat_reduced[0])))
+        # print('linear_mat: ' + str(len(linear_mat_reduced[0])))
         # print('edge_num_reduced: ' + str(len(edge_num_reduced)))
         # print('pos_var: ' + str(len(pos_var)))
         # print('new_pos_var: ' + str(len(new_pos_var)))
@@ -494,7 +506,7 @@ class myThread (threading.Thread):
 
     def get_value(self):
         # print('feassollen: ' + str(len(self.feas_sol))) + '\n'
-        print('feas_sol: ' + str(len(self.feas_sol[0])))
+        # print('feas_sol: ' + str(len(self.feas_sol[0])))
         return self.feas_sol
 
 def solve_step_shared(board, num_proc):
@@ -614,7 +626,7 @@ def solve_step_shared(board, num_proc):
             y_index = tile_to_open / length_of_row
             x_index = tile_to_open % length_of_row
             grids.append([x_index, y_index])
-    if len(grids) == 0:
+    if len(grids) == 0 and len(probabilities) > 0:
         tile_to_open = pos_var[np.argmin(probabilities)]
         length_of_row = len(board[0])
         y_index = tile_to_open / length_of_row
@@ -933,7 +945,7 @@ if __name__ == '__main__':
     parser.add_argument("--save", help="Save performance data", action="store_true")
     parser.add_argument("--autostart", help="Start auto-solve on launch. NOTE: is always true if not using web", action="store_true")
     parser.add_argument("-p", dest="p", default=1, type=int, help="Number of threads, only for shared implementation")
-    parser.add_argument("--seed", default=5555, type=int, help="Set random seed.")
+    parser.add_argument("--seed", default=9999, type=int, help="Set random seed.")
     args = parser.parse_args()
     NUM_THREADS = args.p
     app.config['autostart'] = args.autostart
