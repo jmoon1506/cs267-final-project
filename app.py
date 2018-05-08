@@ -534,21 +534,21 @@ def solve_step_shared(board, num_proc):
 
     log_debug("U matrix of linear equations joined matrix is: \n%s", u)
 
-    clear_grid_index = choose_clear_grids(u)
-    if len(clear_grid_index) > 0:
-        log_info("I am sure")
-        clear_grid_early = []
-        for i in range(len(clear_grid_index)):
-            tile_to_open = pos_var[clear_grid_index[i]]
-            length_of_row = len(board[0])
-            y_index = tile_to_open / length_of_row
-            x_index = tile_to_open % length_of_row
-            clear_grid_early.append([x_index, y_index])
-        # return clear_grid_early
-        time_solve_step = time.time() - start_solve_step
-        return {'grids':clear_grid_early, 'times':[time_solve_step, 0, 0, 0]}
-    else:
-        log_info("I am guessing")
+    # clear_grid_index = choose_clear_grids(u)
+    # if len(clear_grid_index) > 0:
+    #     log_info("I am sure")
+    #     clear_grid_early = []
+    #     for i in range(len(clear_grid_index)):
+    #         tile_to_open = pos_var[clear_grid_index[i]]
+    #         length_of_row = len(board[0])
+    #         y_index = tile_to_open / length_of_row
+    #         x_index = tile_to_open % length_of_row
+    #         clear_grid_early.append([x_index, y_index])
+    #     # return clear_grid_early
+    #     time_solve_step = time.time() - start_solve_step
+    #     return {'grids':clear_grid_early, 'times':[time_solve_step, 0, 0, 0]}
+    # else:
+    #     log_info("I am guessing")
 
     
 
@@ -563,7 +563,7 @@ def solve_step_shared(board, num_proc):
 
 
     # Select rows that we want to solve as a subproblem in the serial part.
-    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = num_proc/4+2)
+    selected_rows, selected_b = choose_rows(linear_mat_reduced, edge_num_reduced, num_threads = 4)
     selected_rows, new_pos_var = delete_zero_cols(selected_rows, pos_var)
 
     log_debug("Selected rows \n%s", selected_rows)
@@ -619,14 +619,14 @@ def solve_step_shared(board, num_proc):
     probabilities = np.sum(feas_sol, axis=0)
 
     grids = []
-    for ind, prob in enumerate(list(probabilities)):
-        if prob == 0:
-            tile_to_open = pos_var[ind]
-            length_of_row = len(board[0])
-            y_index = tile_to_open / length_of_row
-            x_index = tile_to_open % length_of_row
-            grids.append([x_index, y_index])
-    if len(grids) == 0 and len(probabilities) > 0:
+    # for ind, prob in enumerate(list(probabilities)):
+    #     if prob == 0:
+    #         tile_to_open = pos_var[ind]
+    #         length_of_row = len(board[0])
+    #         y_index = tile_to_open / length_of_row
+    #         x_index = tile_to_open % length_of_row
+    #         grids.append([x_index, y_index])
+    if len(probabilities) > 0:
         tile_to_open = pos_var[np.argmin(probabilities)]
         length_of_row = len(board[0])
         y_index = tile_to_open / length_of_row
@@ -725,23 +725,23 @@ def solve_step_distributed(board, dummy=None):
         pl, u = linalg.lu(linear_matrix_augmented, permute_l=True)  # Perform LU decomposition. U is gaussian eliminated.
         log_debug("U matrix of linear equations joined matrix is: \n%s", u)
 
-        clear_grid_index = choose_clear_grids(u)
-        if len(clear_grid_index) > 0:
-            log_info("I am sure")
-            clear_grid_early = []
-            for i in range(len(clear_grid_index)):
-                tile_to_open = pos_var[clear_grid_index[i]]
-                length_of_row = len(board[0])
-                y_index = tile_to_open / length_of_row
-                x_index = tile_to_open % length_of_row
-                clear_grid_early.append([x_index, y_index])
-            # return clear_grid_early
-            time_solve_step = time.time() - start_solve_step
-            early_return = True
-
-            # return {'grids': clear_grid_early, 'times': [time_solve_step, 0, 0, 0]}
-        else:
-            log_info("I am guessing")
+        # clear_grid_index = choose_clear_grids(u)
+        # if len(clear_grid_index) > 0:
+        #     log_info("I am sure")
+        #     clear_grid_early = []
+        #     for i in range(len(clear_grid_index)):
+        #         tile_to_open = pos_var[clear_grid_index[i]]
+        #         length_of_row = len(board[0])
+        #         y_index = tile_to_open / length_of_row
+        #         x_index = tile_to_open % length_of_row
+        #         clear_grid_early.append([x_index, y_index])
+        #     # return clear_grid_early
+        #     time_solve_step = time.time() - start_solve_step
+        #     early_return = True
+        #
+        #     # return {'grids': clear_grid_early, 'times': [time_solve_step, 0, 0, 0]}
+        # else:
+        #     log_info("I am guessing")
 
         start_custom_reduction = time.time()
         reduced_u = custom_reduction(u)
@@ -872,19 +872,19 @@ def solve_step_distributed(board, dummy=None):
         time_solve_step = min_parallel_time
 
     grids = []
-    for ind, prob in enumerate(list(probabilities)):
-        if prob == 0:
-            tile_to_open = pos_var[ind]
-            length_of_row = len(board[0])
-            y_index = tile_to_open / length_of_row
-            x_index = tile_to_open % length_of_row
-            grids.append([x_index, y_index])
-    if len(grids) == 0:
-        tile_to_open = pos_var[np.argmin(probabilities)]
-        length_of_row = len(board[0])
-        y_index = tile_to_open / length_of_row
-        x_index = tile_to_open % length_of_row
-        grids.append([x_index, y_index])
+    # for ind, prob in enumerate(list(probabilities)):
+    #     if prob == 0:
+    #         tile_to_open = pos_var[ind]
+    #         length_of_row = len(board[0])
+    #         y_index = tile_to_open / length_of_row
+    #         x_index = tile_to_open % length_of_row
+    #         grids.append([x_index, y_index])
+    # if len(grids) == 0:
+    tile_to_open = pos_var[np.argmin(probabilities)]
+    length_of_row = len(board[0])
+    y_index = tile_to_open / length_of_row
+    x_index = tile_to_open % length_of_row
+    grids.append([x_index, y_index])
 
 
     return {'grids': grids, 'times': [time_solve_step, 0, time_partial_bp_solver, time_custom_reduction]}
