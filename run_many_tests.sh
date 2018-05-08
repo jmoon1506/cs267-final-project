@@ -1,0 +1,21 @@
+#!/bin/bash
+sh run_tests.sh 6238
+sh run_tests.sh 3452
+sh run_tests.sh 5349
+sh run_tests.sh 1209
+sh run_tests.sh 2694
+sh run_tests.sh 6344
+sh run_tests.sh 7398
+sh run_tests.sh 8345
+sh run_tests.sh 2394
+sh run_tests.sh 1230
+sh run_tests.sh 2349
+sh run_tests.sh 2345
+sh run_tests.sh 7345
+sh run_tests.sh 1143
+sh run_tests.sh 9753
+sh run_tests.sh 2346
+sh run_tests.sh 9042
+sh run_tests.sh 2244
+sh run_tests.sh 7434
+sh run_tests.sh 5937
