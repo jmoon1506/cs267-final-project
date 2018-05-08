@@ -83,7 +83,8 @@ def autosolve(height, width, mines, solver_method, seed):
 
         comm.Barrier()
         if rank == 0 and not args.hidelogs:
-            board.print_board()
+            # board.print_board()
+            pass
         comm.Barrier()
 
     # if failed_to_solve or (args.keeptrying and board.check_board() == 0):
@@ -697,9 +698,9 @@ def solve_step_distributed(board, dummy=None):
     start_solve_step = time.time()
     time_solve_step = 0
 
-    log_info("I am rank {}".format(rank))
+    log_debug("I am rank {}".format(rank))
     comm.Barrier()
-    log_info("I am rank {}".format(rank))
+    log_debug("I am rank {}".format(rank))
 
     if is_unopened(board, (0, 0)):
         return {'grids': [[0, 0]], 'times': [0, 0, 0, 0]}
@@ -727,7 +728,7 @@ def solve_step_distributed(board, dummy=None):
 
         clear_grid_index = choose_clear_grids(u)
         if len(clear_grid_index) > 0:
-            log_info("I am sure")
+            log_debug("I am sure")
             clear_grid_early = []
             for i in range(len(clear_grid_index)):
                 tile_to_open = pos_var[clear_grid_index[i]]
@@ -741,7 +742,7 @@ def solve_step_distributed(board, dummy=None):
 
             # return {'grids': clear_grid_early, 'times': [time_solve_step, 0, 0, 0]}
         else:
-            log_info("I am guessing")
+            log_debug("I am guessing")
 
         start_custom_reduction = time.time()
         reduced_u = custom_reduction(u)
@@ -787,18 +788,18 @@ def solve_step_distributed(board, dummy=None):
     # inside of rank 0 --- 1. its length is more than 2, or its less than 2.
     # IF the length is < 2... i just wanna do serial.
     # If the length > 2 --- then I wanna scatter.
-    log_info("I am rank {}".format(rank))
+    log_debug("I am rank {}".format(rank))
     # if rank == 0:
     log_debug("Partial feasible solution length is, %s", len(partial_feasible_solution))
     # if len(partial_feasible_solution) > 2:
     orig_partial_feasible_solution = comm.bcast(partial_feasible_solution, root=0)
     to_scatter = set_array_for_scatter(partial_feasible_solution)
-    log_info("Going to scatter from rank {}".format(rank))
+    log_debug("Going to scatter from rank {}".format(rank))
     partial_feasible_solution = comm.scatter(to_scatter, root=0)
     # Broadcast all the data required.
-    log_info("Scattered partial_feasible_solution, now broadcasting from rank 0...")
+    log_debug("Scattered partial_feasible_solution, now broadcasting from rank 0...")
     comm.Barrier()
-    log_info("Finished with barrier?")
+    log_debug("Finished with barrier?")
     linear_mat_reduced = comm.bcast(linear_mat_reduced, root=0)
     edge_num_reduced = comm.bcast(edge_num_reduced, root=0)
     new_pos_var = comm.bcast(new_pos_var, root=0)
@@ -806,17 +807,17 @@ def solve_step_distributed(board, dummy=None):
     time_partial_bp_solver = comm.bcast(time_partial_bp_solver, root=0)
     time_custom_reduction = comm.bcast(time_custom_reduction, root=0)
 
-    log_info("I am rank {}".format(rank))
+    log_debug("I am rank {}".format(rank))
     comm.Barrier()
-    log_info("I am rank {}".format(rank))
+    log_debug("I am rank {}".format(rank))
 
     parallel_feasible_solutions = [] # All procs initailize this to be entry.
-    log_info("I am rank {}".format(rank))
+    log_debug("I am rank {}".format(rank))
     parallel_time = -float("inf")
     if partial_feasible_solution != None and len(partial_feasible_solution) > 0 and len(orig_partial_feasible_solution) > 2: # This means that the root sent me something
         for j, sol in enumerate(partial_feasible_solution):
 
-            log_info("Proc {} partial_feasible_sol is {}".format(rank, sol))
+            log_debug("Proc {} partial_feasible_sol is {}".format(rank, sol))
 
             # All processors go through their list of partial_feasible_solutions
             # set timer
@@ -832,12 +833,12 @@ def solve_step_distributed(board, dummy=None):
                 parallel_time += end_time_parallel_proc - time_parallel_proc
 
     min_parallel_time = comm.allreduce(parallel_time, op=MPI.MAX)
-    log_info("I am rank {}".format(rank))
+    log_debug("I am rank {}".format(rank))
     comm.Barrier()
-    log_info("I am rank {}".format(rank))
+    log_debug("I am rank {}".format(rank))
 
     parallel_feasible_solutions = comm.allreduce(parallel_feasible_solutions, MPI.SUM)
-    log_info("Finished gathering... at rank {}, and parallel feasible solutions array is {}".format(rank, parallel_feasible_solutions))
+    log_debug("Finished gathering... at rank {}, and parallel feasible solutions array is {}".format(rank, parallel_feasible_solutions))
 
 
     # if len(partial_feasible_solution) <= 2:
@@ -847,23 +848,23 @@ def solve_step_distributed(board, dummy=None):
     final_feasible_solution = parallel_feasible_solutions
     log_debug("Length of parallel feasible solution: \n%s", len(parallel_feasible_solutions))
 
-    log_info("Original partial feasible soln is {}".format(orig_partial_feasible_solution))
-    if len(orig_partial_feasible_solution) <= 2 or final_feasible_solution == []:
-        if rank == 0:
-            log_info("USING SERIAL SOLVER")
-        start_bp_solver = time.time()
-        serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
-        time_bp_solver = time.time() - start_bp_solver
-        final_feasible_solution = serial_feasible_soln
-        if rank == 0:
-            log_info("Serial solver took time {}\n".format(time_bp_solver))
-            log_info("Length of serial feasible solution: \n {}".format(serial_feasible_soln))
-        else:
-            time_solve_step = time_bp_solver
+    log_debug("Original partial feasible soln is {}".format(orig_partial_feasible_solution))
+    # if len(orig_partial_feasible_solution) <= 2 or final_feasible_solution == []:
+    if rank == 0:
+        log_info("USING SERIAL SOLVER")
+    start_bp_solver = time.time()
+    serial_feasible_soln = solve_binary_program(linear_mat_reduced, edge_num_reduced)
+    time_bp_solver = time.time() - start_bp_solver
+    final_feasible_solution = serial_feasible_soln
+    if rank == 0:
+        log_info("Serial solver took time {}\n".format(time_bp_solver))
+        log_debug("Length of serial feasible solution: \n {}".format(serial_feasible_soln))
+    else:
+        time_solve_step = time_bp_solver
 
-    log_info("Final feasible solution is {}".format(final_feasible_solution))
+    log_debug("Final feasible solution is {}".format(final_feasible_solution))
     probabilities = np.sum(final_feasible_solution, axis=0)
-    log_info("Probabilities is {}".format(probabilities))
+    log_debug("Probabilities is {}".format(probabilities))
 
     if rank == 0 and min_parallel_time > -float("inf"):
         pass
