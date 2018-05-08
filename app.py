@@ -936,7 +936,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--height", default=8, type=int, help="Optional: Board height. Default is 8.")
     parser.add_argument("--width", default=8, type=int, help="Optional: Board width. Default is 8.")
-    parser.add_argument("--mines", default=10, type=int, help="Optional: Number of mines. Default is 10. ")
+    parser.add_argument("--mines", default=-1, type=int, help="Optional: Number of mines. Default is 12 percent of tiles.")
     parser.add_argument("--solver", default='serial', type=str, help="Default is shared. Type of solver: serial, shared or distributed")
     parser.add_argument("--web", help="Enable web browser", action="store_true")
     parser.add_argument("--hidelogs", help="Hide logging info", action="store_true")
@@ -962,6 +962,9 @@ if __name__ == '__main__':
         solver_method = solve_step_shared
     else:
         raise
+
+    if args.mines < 0:
+        args.mines = int(0.12 * args.height * args.width)
 
     if args.web:
         if args.deploy:
