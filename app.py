@@ -60,6 +60,7 @@ def autosolve(height, width, mines, solver_method, seed):
     # print(len(my_board))
     # print(len(my_board[0]))
     total_time = 0
+    total_compute_time = 0
 
     for i in range(len(board.info_map)):
         for j in range(len(board.info_map[0])):
@@ -74,6 +75,7 @@ def autosolve(height, width, mines, solver_method, seed):
         if args.save and rank == 0:
             writer.writerow(return_dict['times'])
         total_time += return_dict['times'][0]
+        total_compute_time += return_dict['times'][1] + return_dict['times'][2] + return_dict['times'][3]
         tile = return_dict['grids'][0]
         board.click_field(tile[0], tile[1])
         my_board = np.zeros((board.board_height, board.board_width))
@@ -98,10 +100,10 @@ def autosolve(height, width, mines, solver_method, seed):
             if not os.path.exists('total_times.txt'):
                 with open("total_times.txt", "w") as totals:
                     writer = csv.writer(totals, delimiter='\t')
-                    writer.writerow(['solver', 'threads', 'width', 'height', 'mines', 'seed', 'total_time'])
+                    writer.writerow(['solver', 'threads', 'width', 'height', 'mines', 'seed', 'total_time', 'compute_time'])
             totals = open('total_times.txt', 'a')
             writer = csv.writer(totals, delimiter='\t')
-            writer.writerow([str(args.solver), str(args.p), str(args.width), str(args.height), str(args.mines), str(args.seed), str(total_time)])
+            writer.writerow([str(args.solver), str(args.p), str(args.width), str(args.height), str(args.mines), str(args.seed), str(total_time), str(total_compute_time)])
             totals.close()
             print('Finished in ' + str(total_time) + ' seconds')
 
@@ -964,7 +966,7 @@ if __name__ == '__main__':
         raise
 
     if args.mines < 0:
-        args.mines = int(0.12 * args.height * args.width)
+        args.mines = int(0.1 * args.height * args.width)
 
     if args.web:
         if args.deploy:
